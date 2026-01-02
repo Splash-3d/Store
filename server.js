@@ -48,32 +48,60 @@ const upload = multer({
     }
 });
 
-// Database simulation (in production, use a real database)
-let database = {
-    users: [
-        {
-            id: 1,
-            username: process.env.ADMIN_USERNAME || 'admin',
-            passwordHash: process.env.ADMIN_PASSWORD_HASH || crypto.createHash('sha256').update('admin123').digest('hex'),
-            role: 'admin'
-        },
-        {
-            id: 2,
-            username: 'Óscar',
-            passwordHash: 'd66a93e05da92d10ddaf5c55b93f3769613713cc5e3d581c1c6befcbf7cdb16f',
-            role: 'admin'
+// Database with file persistence
+const DB_FILE = path.join(__dirname, 'database.json');
+
+// Load database from file or create default
+function loadDatabase() {
+    try {
+        if (fs.existsSync(DB_FILE)) {
+            const data = fs.readFileSync(DB_FILE, 'utf8');
+            return JSON.parse(data);
         }
-    ],
-    products: [],
-    orders: [],
-    stats: {
-        totalProducts: 0,
-        totalOrders: 0,
-        totalRevenue: 0.00,
-        totalCustomers: 0
-    },
-    activityLog: []
-};
+    } catch (error) {
+        console.log('Error loading database, creating new one:', error.message);
+    }
+    
+    // Default database structure
+    return {
+        users: [
+            {
+                id: 1,
+                username: process.env.ADMIN_USERNAME || 'admin',
+                passwordHash: process.env.ADMIN_PASSWORD_HASH || crypto.createHash('sha256').update('admin123').digest('hex'),
+                role: 'admin'
+            },
+            {
+                id: 2,
+                username: 'Óscar',
+                passwordHash: 'd66a93e05da92d10ddaf5c55b93f3769613713cc5e3d581c1c6befcbf7cdb16f',
+                role: 'admin'
+            }
+        ],
+        products: [],
+        orders: [],
+        stats: {
+            totalProducts: 0,
+            totalOrders: 0,
+            totalRevenue: 0.00,
+            totalCustomers: 0
+        },
+        activityLog: []
+    };
+}
+
+// Save database to file
+function saveDatabase() {
+    try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(database, null, 2));
+        console.log('Database saved to file');
+    } catch (error) {
+        console.error('Error saving database:', error);
+    }
+}
+
+// Initialize database
+let database = loadDatabase();
 
 // Session management
 const sessions = new Map();
@@ -259,6 +287,7 @@ app.post('/api/admin/products', upload.single('productImage'), (req, res) => {
         console.log(`Image uploaded: ${imagePath}`);
     }
 
+    saveDatabase(); // Save to file
     res.json({ success: true, product: newProduct });
 });
 
@@ -292,6 +321,7 @@ app.put('/api/admin/products/:id', (req, res) => {
 
     console.log(`Product updated: ${updatedProduct.name}`);
 
+    saveDatabase(); // Save to file
     res.json({ success: true, product: updatedProduct });
 });
 
@@ -322,6 +352,7 @@ app.delete('/api/admin/products/:id', (req, res) => {
 
     console.log(`Product deleted: ${deletedProduct.name}`);
 
+    saveDatabase(); // Save to file
     res.json({ success: true });
 });
 
