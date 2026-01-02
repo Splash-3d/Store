@@ -10,7 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
+<body class="products-page-wrapper">
     <!-- Header -->
     <header class="bg-white shadow-sm sticky-top">
         <nav class="navbar navbar-expand-lg navbar-light">
@@ -48,43 +48,41 @@
             </div>
         </nav>
     </header>
-    <!-- Products Section -->
-    <section id="products" class="py-5">
-        <div class="container">
-            <h2 class="text-center mb-5 fw-bold">Nuestros Productos</h2>
-            
-            <!-- Filters -->
-            <div class="row mb-4">
-                <div class="col-md-4">
-                    <select class="form-select" id="categoryFilter">
-                        <option value="">Todas las categorías</option>
-                        <!-- Categories will be loaded dynamically -->
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <select class="form-select" id="sortFilter">
-                        <option value="">Ordenar por</option>
-                        <option value="price-low">Precio: Menor a Mayor</option>
-                        <option value="price-high">Precio: Mayor a Menor</option>
-                        <option value="name">Nombre A-Z</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <div class="input-group">
+
+    <div class="products-page-content">
+        <!-- Products Section -->
+        <main class="products-page-main py-5">
+            <div class="container">
+                <h2 class="text-center mb-5 fw-bold">Nuestros Productos</h2>
+                
+                <!-- Filters -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <select class="form-select" id="categoryFilter">
+                            <option value="">Todas las categorías</option>
+                            <!-- Categories will be loaded dynamically -->
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="sortFilter">
+                            <option value="">Ordenar por</option>
+                            <option value="price-low">Precio: Menor a Mayor</option>
+                            <option value="price-high">Precio: Mayor a Menor</option>
+                            <option value="name">Nombre A-Z</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
                         <input type="text" class="form-control" id="searchInput" placeholder="Buscar productos...">
-                        <button class="btn btn-outline-secondary" type="button">
-                            <i class="fas fa-search"></i>
-                        </button>
                     </div>
                 </div>
+
+                <!-- Products Grid -->
+                <div class="row" id="productsGrid">
+                    <!-- Products will be loaded here -->
+                </div>
             </div>
-            
-            <!-- Products Grid -->
-            <div class="row" id="productsContainer">
-                <!-- Productos cargados dinámicamente -->
-            </div>
-        </div>
-    </section>
+        </main>
+    </div>
     <!-- Cart Modal -->
     <div class="modal fade" id="cartModal" tabindex="-1">
         <div class="modal-dialog modal-lg">

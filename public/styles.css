@@ -893,7 +893,50 @@ footer p {
 .toast-warning .toast-icon { color: var(--warning-yellow); }
 
 /* ============================================================
-   22. UTILIDADES FINALES
+   23. STICKY FOOTER FOR PRODUCTS PAGE
+   ============================================================ */
+
+/* Sticky footer for products page */
+.products-page-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.products-page-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.products-page-main {
+    flex: 1;
+}
+
+/* Ensure footer stays at bottom on products page */
+.products-page footer {
+    margin-top: auto;
+    flex-shrink: 0;
+}
+
+/* Alternative approach for all pages */
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1;
+}
+
+/* Fallback for pages without enough content */
+.min-vh-100 {
+    min-height: calc(100vh - 200px); /* Approximate footer height */
+}
+
+/* ============================================================
+   24. UTILIDADES FINALES
    ============================================================ */
 
 .fade-in-up { animation: fadeInUp 0.55s ease-out; }
