@@ -1,4 +1,4 @@
-// Simple Node.js server with database simulation
+// Secure Node.js server with persistent database and enhanced security
 require('dotenv').config();
 const express = require('express');
 const crypto = require('crypto');
@@ -9,57 +9,71 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ensure uploads directory exists
+// Ensure directories exist
 const uploadsDir = path.join(__dirname, 'uploads', 'products');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+const publicDir = path.join(__dirname, 'public');
+const logsDir = path.join(__dirname, 'logs');
+
+[uploadsDir, publicDir, logsDir].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+});
 
 // Middleware
-app.use(express.json());
-app.use(express.static('.'));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadPath = path.join(__dirname, 'uploads', 'products');
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        cb(null, uploadPath);
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+// Rate limiting for login attempts
+const loginAttempts = new Map();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX = 20;
+
+// Input sanitization
+function sanitizeInput(input) {
+    if (typeof input !== 'string') return input;
+    return input.replace(/[<>]/g, '');
+}
+
+// Logging system
+function writeLog(level, message, data = null) {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+        timestamp,
+        level,
+        message,
+        data: data ? JSON.stringify(data) : null
+    };
+    
+    const logFile = path.join(logsDir, `app-${new Date().toISOString().split('T')[0]}.log`);
+    const logLine = `${timestamp} [${level}] ${message}${data ? ' - ' + JSON.stringify(data) : ''}\n`;
+    
+    try {
+        fs.appendFileSync(logFile, logLine);
+    } catch (error) {
+        console.error('Failed to write log:', error.message);
     }
-});
+    
+    // Also log to console for development
+    console.log(`[${level}] ${message}`, data || '');
+}
 
-const upload = multer({ 
-    storage: storage,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
-    },
-    fileFilter: function (req, file, cb) {
-        // Accept images only
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-            return cb(new Error('Solo se permiten archivos de imagen (JPG, PNG, GIF)'), false);
-        }
-        cb(null, true);
-    }
-});
-
-// Database with file persistence
+// Database with file persistence and write queue
 const DB_FILE = path.join(__dirname, 'database.json');
+let writeQueue = Promise.resolve();
+let dbLock = false;
 
 // Load database from file or create default
 function loadDatabase() {
     try {
         if (fs.existsSync(DB_FILE)) {
             const data = fs.readFileSync(DB_FILE, 'utf8');
-            return JSON.parse(data);
+            const db = JSON.parse(data);
+            writeLog('INFO', 'Database loaded successfully', { products: db.products?.length || 0 });
+            return db;
         }
     } catch (error) {
-        console.log('Error loading database, creating new one:', error.message);
+        writeLog('ERROR', 'Error loading database, creating new one', { error: error.message });
     }
     
     // Default database structure
@@ -90,20 +104,64 @@ function loadDatabase() {
     };
 }
 
-// Save database to file
+// Save database to file with concurrency control
 function saveDatabase() {
-    try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(database, null, 2));
-        console.log('Database saved to file');
-    } catch (error) {
-        console.error('Error saving database:', error);
-    }
+    return new Promise((resolve, reject) => {
+        writeQueue = writeQueue.then(async () => {
+            if (dbLock) {
+                // Wait for lock to be released
+                await new Promise(wait => setTimeout(wait, 10));
+                return saveDatabase();
+            }
+            
+            dbLock = true;
+            try {
+                // Create backup before writing
+                const backupFile = DB_FILE + '.backup';
+                if (fs.existsSync(DB_FILE)) {
+                    fs.copyFileSync(DB_FILE, backupFile);
+                }
+                
+                // Write to temporary file first
+                const tempFile = DB_FILE + '.tmp';
+                fs.writeFileSync(tempFile, JSON.stringify(database, null, 2));
+                
+                // Atomic rename
+                fs.renameSync(tempFile, DB_FILE);
+                
+                // Remove backup
+                if (fs.existsSync(backupFile)) {
+                    fs.unlinkSync(backupFile);
+                }
+                
+                writeLog('DEBUG', 'Database saved successfully');
+                resolve();
+            } catch (error) {
+                writeLog('ERROR', 'Failed to save database', { error: error.message });
+                // Try to restore from backup
+                const backupFile = DB_FILE + '.backup';
+                if (fs.existsSync(backupFile)) {
+                    try {
+                        fs.copyFileSync(backupFile, DB_FILE);
+                        writeLog('INFO', 'Database restored from backup');
+                    } catch (restoreError) {
+                        writeLog('ERROR', 'Failed to restore backup', { error: restoreError.message });
+                    }
+                }
+                reject(error);
+            } finally {
+                dbLock = false;
+            }
+        });
+        
+        writeQueue.then(resolve).catch(reject);
+    });
 }
 
 // Initialize database
 let database = loadDatabase();
 
-// Session management
+// Session management (prepared for Redis migration)
 const sessions = new Map();
 
 // Helper functions
@@ -116,28 +174,33 @@ function generateSessionToken() {
 }
 
 function authenticateUser(username, password) {
-    console.log('Login attempt:', username);
-    console.log('Available users:', database.users.map(u => ({ id: u.id, username: u.username })));
-
+    writeLog('INFO', 'Login attempt', { username });
+    
+    const sanitizedUsername = sanitizeInput(username);
     const passwordHash = hashPassword(password);
-    const user = database.users.find(u => u.username === username && u.passwordHash === passwordHash);
+    const user = database.users.find(u => u.username === sanitizedUsername && u.passwordHash === passwordHash);
 
     if (user) {
-        console.log('Auth successful for user:', username);
+        writeLog('INFO', 'Authentication successful', { username: sanitizedUsername });
         return user;
     }
 
-    console.log('Auth failed for user:', username);
-    console.log('Password hash attempted:', passwordHash);
+    writeLog('WARNING', 'Authentication failed', { username: sanitizedUsername });
     return null;
 }
 
 function validateSession(token) {
     const session = sessions.get(token);
-    if (!session || session.expiresAt < Date.now()) {
-        sessions.delete(token);
+    if (!session) {
         return null;
     }
+    
+    if (session.expiresAt < Date.now()) {
+        sessions.delete(token);
+        writeLog('INFO', 'Session expired and removed', { token: token.substring(0, 8) + '...' });
+        return null;
+    }
+    
     return session.user;
 }
 
@@ -153,225 +216,478 @@ function getTokenFromHeader(req) {
     return authHeader;
 }
 
-// API Routes
-
-// Get all products (public)
-app.get('/api/products', (req, res) => {
-    const activeProducts = database.products.filter(p => p.status === 'active');
-    res.json(activeProducts);
-});
-
-// Get all products for admin (including inactive)
-app.get('/api/admin/products', (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (!validateSession(token)) {
-        return res.status(401).json({ error: 'No autorizado' });
+// Rate limiting middleware for login
+function rateLimitLogin(req, res, next) {
+    const clientIP = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+    
+    if (!loginAttempts.has(clientIP)) {
+        loginAttempts.set(clientIP, { count: 0, resetTime: now + RATE_LIMIT_WINDOW });
     }
-    res.json(database.products);
+    
+    const attempts = loginAttempts.get(clientIP);
+    
+    if (now > attempts.resetTime) {
+        attempts.count = 0;
+        attempts.resetTime = now + RATE_LIMIT_WINDOW;
+    }
+    
+    attempts.count++;
+    
+    if (attempts.count > RATE_LIMIT_MAX) {
+        writeLog('WARNING', 'Rate limit exceeded for login', { IP: clientIP, count: attempts.count });
+        return res.status(429).json({ error: 'Demasiados intentos. Intenta más tarde.' });
+    }
+    
+    next();
+}
+
+// Product validation
+function validateProduct(data, isUpdate = false) {
+    const errors = [];
+    
+    // Sanitize all string inputs
+    if (data.name) data.name = sanitizeInput(data.name);
+    if (data.description) data.description = sanitizeInput(data.description);
+    if (data.category) data.category = sanitizeInput(data.category);
+    
+    // Required fields for new products
+    if (!isUpdate && !data.name) {
+        errors.push('El nombre del producto es requerido');
+    }
+    
+    if (!isUpdate && (data.price === undefined || data.price === null)) {
+        errors.push('El precio del producto es requerido');
+    }
+    
+    // Type validation
+    if (data.name && typeof data.name !== 'string') {
+        errors.push('El nombre debe ser un texto');
+    }
+    
+    if (data.price !== undefined && data.price !== null) {
+        const price = parseFloat(data.price);
+        if (isNaN(price) || price < 0) {
+            errors.push('El precio debe ser un número válido mayor o igual a 0');
+        } else {
+            data.price = price;
+        }
+    }
+    
+    if (data.stock !== undefined && data.stock !== null) {
+        const stock = parseInt(data.stock);
+        if (isNaN(stock) || stock < 0) {
+            errors.push('El stock debe ser un número válido mayor o igual a 0');
+        } else {
+            data.stock = stock;
+        }
+    }
+    
+    // Status validation
+    if (data.status && !['active', 'inactive'].includes(data.status)) {
+        errors.push('El estado debe ser "active" o "inactive"');
+    }
+    
+    // Featured validation - limit to 3 featured products
+    if (data.featured === 'true' || data.featured === true) {
+        const currentFeatured = database.products.filter(p => p.featured && p.status === 'active');
+        if (!isUpdate || (database.products.find(p => p.id === data.id)?.featured !== true)) {
+            if (currentFeatured.length >= 3) {
+                errors.push('Solo puede haber un máximo de 3 productos destacados');
+            }
+        }
+        data.featured = true;
+    } else {
+        data.featured = false;
+    }
+    
+    return errors;
+}
+
+// Configure multer for file uploads with real MIME validation
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadPath = path.join(__dirname, 'uploads', 'products');
+        if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+        }
+        cb(null, uploadPath);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, 'product-' + uniqueSuffix + ext);
+    }
 });
 
-// Admin login
-app.post('/api/admin/login', (req, res) => {
-    const { username, password } = req.body;
+const fileFilter = (req, file, cb) => {
+    // Real MIME type validation
+    const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    
+    if (!allowedMimes.includes(file.mimetype)) {
+        return cb(new Error('Solo se permiten archivos de imagen (JPG, PNG, GIF)'), false);
+    }
+    
+    cb(null, true);
+};
 
-    const user = authenticateUser(username, password);
+const upload = multer({ 
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: fileFilter
+});
 
-    if (user) {
-        const token = generateSessionToken();
-        const session = {
-            user: { id: user.id, username: user.username, role: user.role },
-            token: token,
-            createdAt: Date.now(),
-            expiresAt: Date.now() + (24 * 60 * 60 * 1000)
-        };
+// Serve uploaded images securely
+app.get('/uploads/products/:filename', (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(__dirname, 'uploads', 'products', filename);
+    
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Imagen no encontrada' });
+    }
+    
+    // Validate that it's actually an image
+    const ext = path.extname(filename).toLowerCase();
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif'];
+    
+    if (!allowedExts.includes(ext)) {
+        return res.status(403).json({ error: 'Tipo de archivo no permitido' });
+    }
+    
+    res.sendFile(filePath);
+});
 
-        sessions.set(token, session);
+// API Routes with pagination
+app.get('/api/products', (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 12;
+        const skip = (page - 1) * limit;
+        
+        const activeProducts = database.products.filter(p => p.status === 'active');
+        const total = activeProducts.length;
+        const products = activeProducts.slice(skip, skip + limit);
+        
+        res.json({
+            products,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching products', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
 
-        res.json({ success: true, token });
-    } else {
-        res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+app.get('/api/admin/products', (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+        
+        const total = database.products.length;
+        const products = database.products.slice(skip, skip + limit);
+        
+        res.json({
+            products,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching admin products', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Admin login with rate limiting
+app.post('/api/admin/login', rateLimitLogin, (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        const user = authenticateUser(username, password);
+
+        if (user) {
+            const token = generateSessionToken();
+            const session = {
+                user: { id: user.id, username: user.username, role: user.role },
+                token: token,
+                createdAt: Date.now(),
+                expiresAt: Date.now() + (24 * 60 * 60 * 1000)
+            };
+
+            sessions.set(token, session);
+            writeLog('INFO', 'User logged in successfully', { username: user.username });
+
+            res.json({ success: true, token });
+        } else {
+            res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+        }
+    } catch (error) {
+        writeLog('ERROR', 'Login error', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
 // Verify session
 app.get('/api/admin/verify', (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (!token) {
-        return res.status(401).json({ valid: false });
-    }
+    try {
+        const token = getTokenFromHeader(req);
+        if (!token) {
+            return res.status(401).json({ valid: false });
+        }
 
-    const session = validateSession(token);
-    if (session) {
-        res.json({ valid: true, user: session });
-    } else {
-        res.status(401).json({ valid: false });
+        const session = validateSession(token);
+        if (session) {
+            res.json({ valid: true, user: session });
+        } else {
+            res.status(401).json({ valid: false });
+        }
+    } catch (error) {
+        writeLog('ERROR', 'Session verification error', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
 // Get admin stats
 app.get('/api/admin/stats', (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (!validateSession(token)) {
-        return res.status(401).json({ error: 'No autorizado' });
-    }
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
 
-    database.stats.totalProducts = database.products.filter(p => p.status === 'active').length;
-    res.json(database.stats);
+        database.stats.totalProducts = database.products.filter(p => p.status === 'active').length;
+        res.json(database.stats);
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching stats', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 // Get recent activity
 app.get('/api/admin/activity', (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (!validateSession(token)) {
-        return res.status(401).json({ error: 'No autorizado' });
-    }
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
 
-    const activity = database.activityLog.slice(-20).reverse();
-    res.json(activity);
+        const activity = database.activityLog.slice(-20).reverse();
+        res.json(activity);
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching activity', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 // Get popular products
 app.get('/api/admin/popular-products', (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (!validateSession(token)) {
-        return res.status(401).json({ error: 'No autorizado' });
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const popularProducts = database.products
+            .filter(p => p.status === 'active')
+            .slice(0, 3)
+            .map(p => ({
+                name: p.name,
+                sales: p.sales || 0
+            }));
+
+        res.json(popularProducts);
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching popular products', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-
-    const popularProducts = database.products
-        .filter(p => p.status === 'active')
-        .slice(0, 3)
-        .map(p => ({
-            name: p.name,
-            sales: p.sales || 0
-        }));
-
-    res.json(popularProducts);
 });
 
-// Create new product with file upload
-app.post('/api/admin/products', upload.single('productImage'), (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (!validateSession(token)) {
-        return res.status(401).json({ error: 'No autorizado' });
+// Create new product with validation
+app.post('/api/admin/products', upload.single('productImage'), async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        // Validate product data
+        const validationErrors = validateProduct(req.body);
+        if (validationErrors.length > 0) {
+            return res.status(400).json({ error: 'Datos inválidos', details: validationErrors });
+        }
+
+        const newId = database.products.length > 0
+            ? Math.max(...database.products.map(p => p.id)) + 1
+            : 1;
+
+        let imagePath = null;
+        if (req.file) {
+            imagePath = `/uploads/products/${req.file.filename}`;
+        }
+
+        const newProduct = {
+            id: newId,
+            sales: 0,
+            ...req.body,
+            image: imagePath,
+            createdAt: new Date().toISOString()
+        };
+
+        database.products.push(newProduct);
+        database.stats.totalProducts = database.products.filter(p => p.status === 'active').length;
+
+        database.activityLog.push({
+            product: newProduct.name,
+            action: 'Añadido',
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Product created', { productId: newId, name: newProduct.name });
+        
+        res.json({ success: true, product: newProduct });
+    } catch (error) {
+        writeLog('ERROR', 'Error creating product', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-
-    const newId = database.products.length > 0
-        ? Math.max(...database.products.map(p => p.id)) + 1
-        : 1;
-
-    let imagePath = null;
-    if (req.file) {
-        imagePath = `/uploads/products/${req.file.filename}`;
-    }
-
-    const newProduct = {
-        id: newId,
-        sales: 0,
-        ...req.body,
-        image: imagePath,
-        featured: req.body.featured === 'true',
-        createdAt: new Date().toISOString()
-    };
-
-    database.products.push(newProduct);
-    database.stats.totalProducts = database.products.filter(p => p.status === 'active').length;
-
-    database.activityLog.push({
-        product: newProduct.name,
-        action: 'Añadido',
-        date: new Date().toISOString()
-    });
-
-    console.log(`Product created: ${newProduct.name}`);
-    if (imagePath) {
-        console.log(`Image uploaded: ${imagePath}`);
-    }
-
-    saveDatabase(); // Save to file
-    res.json({ success: true, product: newProduct });
 });
 
-// Update product
-app.put('/api/admin/products/:id', (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (!validateSession(token)) {
-        return res.status(401).json({ error: 'No autorizado' });
+// Update product with validation
+app.put('/api/admin/products/:id', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const productId = parseInt(req.params.id, 10);
+        const productIndex = database.products.findIndex(p => p.id === productId);
+
+        if (productIndex === -1) {
+            return res.status(404).json({ error: 'Producto no encontrado' });
+        }
+
+        // Validate product data
+        const validationErrors = validateProduct(req.body, true);
+        if (validationErrors.length > 0) {
+            return res.status(400).json({ error: 'Datos inválidos', details: validationErrors });
+        }
+
+        const oldProduct = database.products[productIndex];
+        database.products[productIndex] = {
+            ...database.products[productIndex],
+            ...req.body,
+            updatedAt: new Date().toISOString()
+        };
+
+        const updatedProduct = database.products[productIndex];
+
+        database.activityLog.push({
+            product: updatedProduct.name,
+            action: 'Actualizado',
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Product updated', { productId, name: updatedProduct.name });
+        
+        res.json({ success: true, product: updatedProduct });
+    } catch (error) {
+        writeLog('ERROR', 'Error updating product', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-
-    const productId = parseInt(req.params.id, 10);
-    const productIndex = database.products.findIndex(p => p.id === productId);
-
-    if (productIndex === -1) {
-        return res.status(404).json({ error: 'Producto no encontrado' });
-    }
-
-    database.products[productIndex] = {
-        ...database.products[productIndex],
-        ...req.body,
-        updatedAt: new Date().toISOString()
-    };
-
-    const updatedProduct = database.products[productIndex];
-
-    database.activityLog.push({
-        product: updatedProduct.name,
-        action: 'Actualizado',
-        date: new Date().toISOString()
-    });
-
-    console.log(`Product updated: ${updatedProduct.name}`);
-
-    saveDatabase(); // Save to file
-    res.json({ success: true, product: updatedProduct });
 });
 
-// Delete product
-app.delete('/api/admin/products/:id', (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (!validateSession(token)) {
-        return res.status(401).json({ error: 'No autorizado' });
+// Delete product with image cleanup
+app.delete('/api/admin/products/:id', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const productId = parseInt(req.params.id, 10);
+        const productIndex = database.products.findIndex(p => p.id === productId);
+
+        if (productIndex === -1) {
+            return res.status(404).json({ error: 'Producto no encontrado' });
+        }
+
+        const deletedProduct = database.products[productIndex];
+
+        // Delete physical image if exists
+        if (deletedProduct.image) {
+            const filename = path.basename(deletedProduct.image);
+            const imagePath = path.join(__dirname, 'uploads', 'products', filename);
+            
+            try {
+                if (fs.existsSync(imagePath)) {
+                    fs.unlinkSync(imagePath);
+                    writeLog('INFO', 'Product image deleted', { filename });
+                }
+            } catch (error) {
+                writeLog('WARNING', 'Failed to delete product image', { filename, error: error.message });
+            }
+        }
+
+        database.products.splice(productIndex, 1);
+        database.stats.totalProducts = database.products.filter(p => p.status === 'active').length;
+
+        database.activityLog.push({
+            product: deletedProduct.name,
+            action: 'Eliminado',
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Product deleted', { productId, name: deletedProduct.name });
+        
+        res.json({ success: true });
+    } catch (error) {
+        writeLog('ERROR', 'Error deleting product', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-
-    const productId = parseInt(req.params.id, 10);
-    const productIndex = database.products.findIndex(p => p.id === productId);
-
-    if (productIndex === -1) {
-        return res.status(404).json({ error: 'Producto no encontrado' });
-    }
-
-    const deletedProduct = database.products[productIndex];
-
-    database.products.splice(productIndex, 1);
-    database.stats.totalProducts = database.products.filter(p => p.status === 'active').length;
-
-    database.activityLog.push({
-        product: deletedProduct.name,
-        action: 'Eliminado',
-        date: new Date().toISOString()
-    });
-
-    console.log(`Product deleted: ${deletedProduct.name}`);
-
-    saveDatabase(); // Save to file
-    res.json({ success: true });
 });
 
 // Logout
 app.post('/api/admin/logout', (req, res) => {
-    const token = getTokenFromHeader(req);
-    if (token) {
-        sessions.delete(token);
+    try {
+        const token = getTokenFromHeader(req);
+        if (token) {
+            sessions.delete(token);
+            writeLog('INFO', 'User logged out', { token: token.substring(0, 8) + '...' });
+        }
+        res.json({ success: true });
+    } catch (error) {
+        writeLog('ERROR', 'Logout error', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-    res.json({ success: true });
 });
 
 // Serve the main application
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
+    writeLog('INFO', 'Server started', { port: PORT });
     console.log(`Server running at http://0.0.0.0:${PORT}`);
     console.log(`Admin panel: http://0.0.0.0:${PORT}/admin/login.html`);
 });
@@ -379,9 +695,56 @@ app.listen(PORT, '0.0.0.0', () => {
 // Cleanup expired sessions
 setInterval(() => {
     const now = Date.now();
+    let cleanedCount = 0;
+    
     for (const [token, session] of sessions.entries()) {
         if (session.expiresAt < now) {
             sessions.delete(token);
+            cleanedCount++;
         }
     }
-}, 60000);
+    
+    if (cleanedCount > 0) {
+        writeLog('INFO', 'Cleaned up expired sessions', { count: cleanedCount });
+    }
+}, 60000); // Every minute
+
+// Cleanup old rate limit entries
+setInterval(() => {
+    const now = Date.now();
+    let cleanedCount = 0;
+    
+    for (const [ip, attempts] of loginAttempts.entries()) {
+        if (now > attempts.resetTime) {
+            loginAttempts.delete(ip);
+            cleanedCount++;
+        }
+    }
+    
+    if (cleanedCount > 0) {
+        writeLog('DEBUG', 'Cleaned up old rate limit entries', { count: cleanedCount });
+    }
+}, 60000); // Every minute
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+    writeLog('INFO', 'Received SIGTERM, shutting down gracefully');
+    try {
+        await saveDatabase();
+        process.exit(0);
+    } catch (error) {
+        writeLog('ERROR', 'Error during shutdown', { error: error.message });
+        process.exit(1);
+    }
+});
+
+process.on('SIGINT', async () => {
+    writeLog('INFO', 'Received SIGINT, shutting down gracefully');
+    try {
+        await saveDatabase();
+        process.exit(0);
+    } catch (error) {
+        writeLog('ERROR', 'Error during shutdown', { error: error.message });
+        process.exit(1);
+    }
+});
