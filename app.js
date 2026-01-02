@@ -87,7 +87,7 @@ function displayFeaturedProducts() {
     const container = document.getElementById('featuredProducts');
     if (!container) return;
     
-    const featuredProducts = products.slice(0, 6);
+    const featuredProducts = products.filter(p => p.featured && p.status === 'active');
     if (featuredProducts.length === 0) {
         container.innerHTML = '<div class="col-12 text-center"><p class="text-muted">No hay productos destacados.</p></div>';
         return;

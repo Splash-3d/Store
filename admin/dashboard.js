@@ -434,6 +434,7 @@ function editProduct(productId) {
     document.getElementById('productDescription').value = product.description;
     document.getElementById('productImage').value = product.image;
     document.getElementById('productStatus').value = product.status;
+    document.getElementById('productFeatured').value = product.featured ? 'true' : 'false';
 
     document.getElementById('productModalTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Editar Producto';
 
@@ -456,6 +457,7 @@ async function saveProduct() {
     formData.append('stock', document.getElementById('productStock').value);
     formData.append('description', document.getElementById('productDescription').value);
     formData.append('status', document.getElementById('productStatus').value);
+    formData.append('featured', document.getElementById('productFeatured').value);
     
     // Add image file if selected
     if (imageFile) {
@@ -474,7 +476,8 @@ async function saveProduct() {
                 price: parseFloat(document.getElementById('productPrice').value),
                 stock: parseInt(document.getElementById('productStock').value),
                 description: document.getElementById('productDescription').value,
-                status: document.getElementById('productStatus').value
+                status: document.getElementById('productStatus').value,
+                featured: document.getElementById('productFeatured').value === 'true'
             };
             
             response = await fetch(`/api/admin/products/${currentEditingProduct.id}`, {

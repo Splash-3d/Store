@@ -241,6 +241,7 @@ app.post('/api/admin/products', upload.single('productImage'), (req, res) => {
         sales: 0,
         ...req.body,
         image: imagePath,
+        featured: req.body.featured === 'true',
         createdAt: new Date().toISOString()
     };
 
