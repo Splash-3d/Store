@@ -278,7 +278,8 @@ async function loadProducts() {
         });
         
         if (response.ok) {
-            products = await response.json();
+            const data = await response.json();
+            products = data.products || []; // Handle paginated response
         } else if (response.status === 401) {
             handleAuthError();
             return;
@@ -293,7 +294,8 @@ async function loadProducts() {
         try {
             const fallbackResponse = await fetch('/api/products');
             if (fallbackResponse.ok) {
-                products = await fallbackResponse.json();
+                const data = await fallbackResponse.json();
+                products = data.products || []; // Handle paginated response
             } else {
                 products = [];
             }

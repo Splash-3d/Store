@@ -31,7 +31,8 @@ async function loadProducts() {
     try {
         const response = await fetch('/api/products');
         if (response.ok) {
-            products = await response.json();
+            const data = await response.json();
+            products = data.products || []; // Handle paginated response
             displayProducts();
             displayFeaturedProducts();
             updateStats();
