@@ -6,9 +6,10 @@ let customerSatisfaction = 0;
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
-    loadProducts();
-    loadCart();
-    updateStats();
+    loadProducts().then(() => {
+        loadCart();
+        updateStats();
+    });
     setupEventListeners();
 });
 
@@ -300,6 +301,31 @@ function loadCart() {
     const savedCart = localStorage.getItem('cart');
     if (savedCart) {
         cart = JSON.parse(savedCart);
+        console.log('Cart loaded from localStorage:', cart);
+        
+        // Clean cart of products that no longer exist
+        if (products.length > 0) {
+            const validCart = cart.filter(item => {
+                const productExists = products.some(p => p.id === item.id);
+                if (!productExists) {
+                    console.log('Removing invalid product from cart:', item);
+                }
+                return productExists;
+            });
+            
+            if (validCart.length !== cart.length) {
+                console.log('Cart cleaned:', { old: cart.length, new: validCart.length });
+                cart = validCart;
+                // Save the cleaned cart
+                localStorage.setItem('cart', JSON.stringify(cart));
+            }
+        } else {
+            // If no products exist, clear cart completely
+            console.log('No products available, clearing cart');
+            cart = [];
+            localStorage.setItem('cart', JSON.stringify(cart));
+        }
+        
         updateCart();
     }
 }
