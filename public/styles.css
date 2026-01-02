@@ -300,8 +300,8 @@ p {
 
 .hero-section {
     background: var(--primary-gradient);
-    min-height: 45vh !important;
-    padding: var(--spacing-xl) var(--spacing-md) !important;
+    min-height: 35vh !important;
+    padding: var(--spacing-lg) var(--spacing-md) !important;
     display: flex;
     align-items: center;
     position: relative;
