@@ -12,12 +12,17 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
 });
 
+// Open cart modal
+function openCartModal() {
+    const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+    cartModal.show();
+}
+
 // Setup event listeners
 function setupEventListeners() {
     // Cart functionality
     document.getElementById('cartCount')?.addEventListener('click', () => {
-        const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
-        cartModal.show();
+        openCartModal();
     });
 }
 
