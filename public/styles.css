@@ -622,7 +622,7 @@ a:hover {
 footer {
     background: #ffffff !important;
     color: #000000 !important;
-    padding: var(--spacing-md) 0 var(--spacing-sm) !important;
+    padding: var(--spacing-sm) 0 var(--spacing-xs) !important;
     margin-top: auto !important;
     flex-shrink: 0 !important;
     position: fixed !important;
@@ -637,14 +637,14 @@ footer {
 footer h5 {
     color: #000000 !important;
     font-weight: var(--font-weight-medium) !important;
-    margin-bottom: var(--spacing-xs) !important;
-    font-size: 1.1rem !important;
+    margin-bottom: 0 !important;
+    font-size: 1rem !important;
 }
 
 footer p {
     color: rgba(0, 0, 0, 0.6) !important;
-    margin-bottom: var(--spacing-xs) !important;
-    font-size: 1rem !important;
+    margin-bottom: 0 !important;
+    font-size: 0.85rem !important;
 }
 
 footer .social-links a,
