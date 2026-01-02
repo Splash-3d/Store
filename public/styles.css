@@ -614,6 +614,11 @@ a:hover {
     font-weight: var(--font-weight-bold);
 }
 
+/* Cart icon color fix */
+.navbar-nav .nav-link i.fa-shopping-cart {
+    color: #1a1a1a !important;
+}
+
 /* ============================================================
    13. FOOTER ESTILOS LIMPIOS - BLANCO Y FINO
    ============================================================ */
