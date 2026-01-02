@@ -638,13 +638,13 @@ footer h5 {
     color: #000000 !important;
     font-weight: var(--font-weight-medium) !important;
     margin-bottom: var(--spacing-xs) !important;
-    font-size: 0.9rem !important;
+    font-size: 1.1rem !important;
 }
 
 footer p {
     color: rgba(0, 0, 0, 0.6) !important;
     margin-bottom: var(--spacing-xs) !important;
-    font-size: 0.8rem !important;
+    font-size: 1rem !important;
 }
 
 footer .social-links a {
