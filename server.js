@@ -69,7 +69,25 @@ function loadDatabase() {
         if (fs.existsSync(DB_FILE)) {
             const data = fs.readFileSync(DB_FILE, 'utf8');
             const db = JSON.parse(data);
-            writeLog('INFO', 'Database loaded successfully', { products: db.products?.length || 0 });
+            
+            // Clear default categories if they exist
+            if (db.categories && db.categories.length > 0) {
+                const defaultCategoryNames = ['camisetas', 'sudaderas', 'pantalones', 'accesorios'];
+                const hasDefaultCategories = db.categories.some(cat => 
+                    defaultCategoryNames.includes(cat.name.toLowerCase())
+                );
+                
+                if (hasDefaultCategories) {
+                    writeLog('INFO', 'Removing default categories', { 
+                        oldCategories: db.categories.length,
+                        categories: db.categories.map(c => c.name)
+                    });
+                    db.categories = [];
+                    writeLog('INFO', 'Categories cleared for manual creation');
+                }
+            }
+            
+            writeLog('INFO', 'Database loaded successfully', { products: db.products?.length || 0, categories: db.categories?.length || 0 });
             return db;
         }
     } catch (error) {
@@ -92,12 +110,7 @@ function loadDatabase() {
                 role: 'admin'
             }
         ],
-        categories: [
-            { id: 1, name: 'camisetas', description: 'Camisetas y remeras' },
-            { id: 2, name: 'sudaderas', description: 'Sudaderas y hoodies' },
-            { id: 3, name: 'pantalones', description: 'Pantalones y jeans' },
-            { id: 4, name: 'accesorios', description: 'Accesorios y complementos' }
-        ],
+        categories: [],
         products: [],
         orders: [],
         stats: {
