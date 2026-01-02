@@ -899,6 +899,47 @@ app.post('/api/admin/cleanup-images', async (req, res) => {
     }
 });
 
+// Check orphaned images (without deleting)
+app.get('/api/admin/check-orphaned-images', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const uploadsDir = path.join(__dirname, 'uploads', 'products');
+        if (!fs.existsSync(uploadsDir)) {
+            return res.json({ totalFiles: 0, orphanedFiles: [], productImages: 0 });
+        }
+
+        // Get all files in uploads directory
+        const uploadedFiles = fs.readdirSync(uploadsDir);
+        
+        // Get all product images from database
+        const productImages = new Set();
+        database.products.forEach(product => {
+            if (product.image) {
+                const filename = path.basename(product.image);
+                productImages.add(filename);
+            }
+        });
+
+        // Find orphaned files (without deleting)
+        const orphanedFiles = uploadedFiles.filter(file => !productImages.has(file));
+
+        res.json({ 
+            totalFiles: uploadedFiles.length,
+            productImages: productImages.size,
+            orphanedFiles,
+            allFiles: uploadedFiles,
+            productImageList: Array.from(productImages)
+        });
+    } catch (error) {
+        writeLog('ERROR', 'Check orphaned images error', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 // Serve the main application
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -914,7 +955,10 @@ function cleanupOrphanedImages() {
 
         // Get all files in uploads directory
         const uploadedFiles = fs.readdirSync(uploadsDir);
-        writeLog('INFO', 'Starting cleanup', { totalFiles: uploadedFiles.length });
+        writeLog('INFO', 'Starting cleanup', { totalFiles: uploadedFiles.length, uploadsDir });
+        
+        // Debug: List all files found
+        writeLog('DEBUG', 'Files in uploads directory', { files: uploadedFiles });
         
         // Get all product images from database
         const productImages = new Set();
@@ -922,22 +966,31 @@ function cleanupOrphanedImages() {
             if (product.image) {
                 const filename = path.basename(product.image);
                 productImages.add(filename);
+                writeLog('DEBUG', 'Product image found', { productId: product.id, filename });
             }
         });
         
-        writeLog('INFO', 'Product images found', { count: productImages.size });
+        writeLog('INFO', 'Product images found', { count: productImages.size, images: Array.from(productImages) });
 
         // Delete orphaned files
         let deletedCount = 0;
         const deletedFiles = [];
         uploadedFiles.forEach(file => {
+            writeLog('DEBUG', 'Checking file', { filename: file, isOrphaned: !productImages.has(file) });
+            
             if (!productImages.has(file)) {
                 const filePath = path.join(uploadsDir, file);
                 try {
-                    fs.unlinkSync(filePath);
-                    deletedCount++;
-                    deletedFiles.push(file);
-                    writeLog('INFO', 'Orphaned image deleted', { filename: file });
+                    // Check if it's actually a file (not directory)
+                    const stats = fs.statSync(filePath);
+                    if (stats.isFile()) {
+                        fs.unlinkSync(filePath);
+                        deletedCount++;
+                        deletedFiles.push(file);
+                        writeLog('INFO', 'Orphaned image deleted', { filename: file });
+                    } else {
+                        writeLog('WARNING', 'Skipping directory', { dirname: file });
+                    }
                 } catch (error) {
                     writeLog('WARNING', 'Failed to delete orphaned image', { filename: file, error: error.message });
                 }
@@ -948,7 +1001,8 @@ function cleanupOrphanedImages() {
             deletedCount,
             deletedFiles,
             totalFiles: uploadedFiles.length,
-            productImages: productImages.size
+            productImages: productImages.size,
+            uploadsDir
         };
 
         if (deletedCount > 0) {
