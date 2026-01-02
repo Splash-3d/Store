@@ -121,7 +121,7 @@ footer {
     margin-bottom: 0 !important;
 }
 
-/* Update ALL text colors for dark theme */
+/* Update text colors for dark theme */
 .text-white {
     color: #ffffff !important;
 }
@@ -135,11 +135,11 @@ footer {
 }
 
 .text-dark {
-    color: #ffffff !important;
+    color: var(--primary-black) !important;
 }
 
 .text-primary {
-    color: #ffffff !important;
+    color: var(--primary-black) !important;
 }
 
 .text-secondary {
@@ -147,19 +147,19 @@ footer {
 }
 
 .text-success {
-    color: #4ade80 !important;
+    color: var(--success-green) !important;
 }
 
 .text-danger {
-    color: #ff6b6b !important;
+    color: var(--danger-red) !important;
 }
 
 .text-warning {
-    color: #ffd93d !important;
+    color: var(--warning-yellow) !important;
 }
 
 .text-info {
-    color: #4ecdc4 !important;
+    color: var(--info-blue) !important;
 }
 
 /* Update ALL text elements for dark theme */
@@ -167,47 +167,47 @@ h1, h2, h3, h4, h5, h6 {
     font-weight: var(--font-weight-bold);
     line-height: 1.15; /* compactado */
     margin-bottom: var(--spacing-md);
-    color: #ffffff !important;
+    color: var(--text-primary);
 }
 
 p {
     margin-bottom: var(--spacing-md);
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: var(--dark-gray);
 }
 
 span {
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: var(--text-primary);
 }
 
 div {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: var(--text-primary);
 }
 
 small {
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: var(--medium-gray);
 }
 
 strong, b {
-    color: #ffffff !important;
+    color: var(--text-primary);
 }
 
 em, i {
-    color: rgba(255, 255, 255, 0.95) !important;
+    color: var(--text-primary);
 }
 
 a {
-    color: #4ecdc4 !important;
+    color: var(--primary-black);
 }
 
 a:hover {
-    color: #4ade80 !important;
+    color: var(--accent-orange);
 }
 
 /* Update lead text for dark theme */
 .lead {
     font-size: 1.25rem;
     font-weight: var(--font-weight-light);
-    color: rgba(255, 255, 255, 0.95) !important;
+    color: var(--text-primary);
 }
 
 /* ============================================================
