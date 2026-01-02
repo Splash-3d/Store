@@ -578,9 +578,35 @@ footer:before {
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
 }
 
-footer h5 {
-    margin-bottom: var(--spacing-sm) !important;
+/* Footer logo styles */
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.footer-logo i {
+    font-size: 2.5rem;
+    color: var(--primary-white);
+    transition: transform var(--transition-normal);
+}
+
+.footer-logo:hover i {
+    transform: scale(1.1);
+}
+
+.brand-text {
+    font-size: 1.2rem;
     font-weight: var(--font-weight-bold);
+    color: var(--primary-white);
+    text-decoration: none;
+    transition: all var(--transition-normal);
+}
+
+.brand-text:hover {
+    color: rgba(255, 255, 255, 0.8);
+    transform: translateY(-2px);
 }
 
 footer p {
