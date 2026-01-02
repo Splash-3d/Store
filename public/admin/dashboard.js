@@ -1,5 +1,7 @@
 let products = [];
+let categories = [];
 let currentEditingProduct = null;
+let currentEditingCategory = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     if (!isAuthenticated()) {
@@ -9,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     loadDashboardData();
     loadProducts();
+    loadCategories();
     setupEventListeners();
     setupRealTimeUpdates();
 });
@@ -617,6 +620,208 @@ function formatDate(dateString) {
         month: 'short',
         day: 'numeric'
     });
+}
+
+/* ---------------------------
+   CATEGORIES MANAGEMENT
+---------------------------- */
+
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/admin/categories', {
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+        
+        if (response.ok) {
+            categories = await response.json();
+            displayCategories();
+            updateProductCategoryOptions();
+        } else if (response.status === 401) {
+            handleAuthError();
+            return;
+        } else {
+            categories = [];
+        }
+    } catch (error) {
+        console.log('Admin categories API failed:', error.message);
+        categories = [];
+        displayCategories();
+    }
+}
+
+function displayCategories() {
+    const tbody = document.getElementById('categoriesTable');
+
+    if (categories.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay categorías</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = categories.map(category => `
+        <tr>
+            <td>${category.id}</td>
+            <td>
+                <div class="fw-bold">${category.name}</div>
+            </td>
+            <td>${category.description || 'Sin descripción'}</td>
+            <td>${formatDate(category.createdAt)}</td>
+            <td>
+                <button class="btn btn-sm btn-primary btn-action" onclick="editCategory(${category.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-danger btn-action" onclick="deleteCategory(${category.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openCategoryModal() {
+    currentEditingCategory = null;
+    
+    // Reset form
+    document.getElementById('categoryId').value = '';
+    document.getElementById('categoryName').value = '';
+    document.getElementById('categoryDescription').value = '';
+    
+    // Update modal title
+    document.getElementById('categoryModalTitle').innerHTML = '<i class="fas fa-tags me-2"></i>Añadir Categoría';
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    modal.show();
+}
+
+function editCategory(categoryId) {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return;
+
+    currentEditingCategory = category;
+
+    // Fill form
+    document.getElementById('categoryId').value = category.id;
+    document.getElementById('categoryName').value = category.name;
+    document.getElementById('categoryDescription').value = category.description || '';
+
+    // Update modal title
+    document.getElementById('categoryModalTitle').innerHTML = '<i class="fas fa-tags me-2"></i>Editar Categoría';
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    modal.show();
+}
+
+async function saveCategory() {
+    try {
+        const categoryId = document.getElementById('categoryId').value;
+        const name = document.getElementById('categoryName').value.trim();
+        const description = document.getElementById('categoryDescription').value.trim();
+
+        if (!name) {
+            showNotification('El nombre de la categoría es requerido', 'error');
+            return;
+        }
+
+        const categoryData = { name, description };
+
+        let response;
+        if (categoryId) {
+            // Update existing category
+            response = await fetch(`/api/admin/categories/${categoryId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                },
+                body: JSON.stringify(categoryData)
+            });
+        } else {
+            // Create new category
+            response = await fetch('/api/admin/categories', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...getAuthHeaders()
+                },
+                body: JSON.stringify(categoryData)
+            });
+        }
+
+        if (response.ok) {
+            showNotification(categoryId ? 'Categoría actualizada correctamente' : 'Categoría creada correctamente', 'success');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
+            modal.hide();
+            
+            // Reload categories
+            await loadCategories();
+            
+            // Update product form categories
+            updateProductCategoryOptions();
+        } else {
+            const error = await response.json();
+            showNotification(error.error || 'Error al guardar la categoría', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving category:', error);
+        showNotification('Error al guardar la categoría', 'error');
+    }
+}
+
+async function deleteCategory(categoryId) {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return;
+
+    if (!confirm(`¿Estás seguro de que quieres eliminar la categoría "${category.name}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/categories/${categoryId}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            showNotification('Categoría eliminada correctamente', 'success');
+            await loadCategories();
+            updateProductCategoryOptions();
+        } else {
+            const error = await response.json();
+            showNotification(error.error || 'Error al eliminar la categoría', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting category:', error);
+        showNotification('Error al eliminar la categoría', 'error');
+    }
+}
+
+function updateProductCategoryOptions() {
+    const categorySelect = document.getElementById('productCategory');
+    if (!categorySelect) return;
+
+    // Save current selection
+    const currentValue = categorySelect.value;
+
+    // Clear options
+    categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
+
+    // Add category options
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.name;
+        option.textContent = category.name;
+        categorySelect.appendChild(option);
+    });
+
+    // Restore selection if it still exists
+    if (currentValue && categories.some(c => c.name === currentValue)) {
+        categorySelect.value = currentValue;
+    }
 }
 
 /* ---------------------------

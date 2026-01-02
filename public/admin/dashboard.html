@@ -230,6 +230,12 @@
                     </li>
 
                     <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showSection('categories', this)">
+                            <i class="fas fa-tags"></i>Categorías
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
                         <a class="nav-link" href="#" onclick="showSection('orders', this)">
                             <i class="fas fa-shopping-cart"></i>Pedidos
                         </a>
@@ -350,6 +356,44 @@
                 </div>
             </div>
 
+            <!-- CATEGORIES SECTION -->
+            <div id="categoriesSection" class="content-section" style="display: none;">
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Gestión de Categorías</h2>
+                    <button class="btn btn-success" onclick="openCategoryModal()">
+                        <i class="fas fa-plus me-2"></i>Añadir Categoría
+                    </button>
+                </div>
+
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Nombre</th>
+                                                <th>Descripción</th>
+                                                <th>Fecha de Creación</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="categoriesTable">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted">Cargando categorías...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- PRODUCTS SECTION -->
             <div id="productsSection" class="content-section" style="display: none;">
 
@@ -426,6 +470,45 @@
         </div>
     </div>
 
+    <!-- CATEGORY MODAL -->
+    <div class="modal fade" id="categoryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoryModalTitle">
+                        <i class="fas fa-tags me-2"></i>Añadir Categoría
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <form id="categoryForm">
+                        <input type="hidden" id="categoryId">
+
+                        <div class="mb-3">
+                            <label for="categoryName" class="form-label">Nombre de la Categoría</label>
+                            <input type="text" class="form-control" id="categoryName" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="categoryDescription" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="categoryDescription" rows="3" placeholder="Describe esta categoría..."></textarea>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="saveCategory()">
+                        <i class="fas fa-save me-2"></i>Guardar Categoría
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
     <!-- PRODUCT MODAL -->
     <div class="modal fade" id="productModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
@@ -452,10 +535,7 @@
                                 <label for="productCategory" class="form-label">Categoría</label>
                                 <select class="form-select" id="productCategory" required>
                                     <option value="">Seleccionar categoría</option>
-                                    <option value="camisetas">Camisetas</option>
-                                    <option value="sudaderas">Sudaderas</option>
-                                    <option value="pantalones">Pantalones</option>
-                                    <option value="accesorios">Accesorios</option>
+                                    <!-- Categories will be loaded dynamically -->
                                 </select>
                             </div>
                         </div>

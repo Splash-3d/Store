@@ -92,6 +92,12 @@ function loadDatabase() {
                 role: 'admin'
             }
         ],
+        categories: [
+            { id: 1, name: 'camisetas', description: 'Camisetas y remeras' },
+            { id: 2, name: 'sudaderas', description: 'Sudaderas y hoodies' },
+            { id: 3, name: 'pantalones', description: 'Pantalones y jeans' },
+            { id: 4, name: 'accesorios', description: 'Accesorios y complementos' }
+        ],
         products: [],
         orders: [],
         stats: {
@@ -357,6 +363,190 @@ app.get('/uploads/products/:filename', (req, res) => {
     }
     
     res.sendFile(filePath);
+});
+
+// Get all categories (public)
+app.get('/api/categories', (req, res) => {
+    try {
+        res.json(database.categories);
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching categories', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Get all categories for admin
+app.get('/api/admin/categories', (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+        res.json(database.categories);
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching admin categories', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Create new category
+app.post('/api/admin/categories', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const { name, description } = req.body;
+
+        // Validate input
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ error: 'El nombre de la categoría es requerido' });
+        }
+
+        const sanitizedName = sanitizeInput(name.trim());
+        const sanitizedDescription = sanitizeInput(description?.trim() || '');
+
+        if (!sanitizedName) {
+            return res.status(400).json({ error: 'El nombre de la categoría no puede estar vacío' });
+        }
+
+        // Check if category already exists
+        if (database.categories.some(cat => cat.name.toLowerCase() === sanitizedName.toLowerCase())) {
+            return res.status(400).json({ error: 'Ya existe una categoría con ese nombre' });
+        }
+
+        const newId = database.categories.length > 0
+            ? Math.max(...database.categories.map(c => c.id)) + 1
+            : 1;
+
+        const newCategory = {
+            id: newId,
+            name: sanitizedName,
+            description: sanitizedDescription,
+            createdAt: new Date().toISOString()
+        };
+
+        database.categories.push(newCategory);
+
+        database.activityLog.push({
+            category: newCategory.name,
+            action: 'Categoría añadida',
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Category created', { categoryId: newId, name: newCategory.name });
+
+        res.json({ success: true, category: newCategory });
+    } catch (error) {
+        writeLog('ERROR', 'Error creating category', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Update category
+app.put('/api/admin/categories/:id', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const categoryId = parseInt(req.params.id, 10);
+        const categoryIndex = database.categories.findIndex(c => c.id === categoryId);
+
+        if (categoryIndex === -1) {
+            return res.status(404).json({ error: 'Categoría no encontrada' });
+        }
+
+        const { name, description } = req.body;
+
+        // Validate input
+        if (!name || typeof name !== 'string') {
+            return res.status(400).json({ error: 'El nombre de la categoría es requerido' });
+        }
+
+        const sanitizedName = sanitizeInput(name.trim());
+        const sanitizedDescription = sanitizeInput(description?.trim() || '');
+
+        if (!sanitizedName) {
+            return res.status(400).json({ error: 'El nombre de la categoría no puede estar vacío' });
+        }
+
+        // Check if category name already exists (excluding current category)
+        if (database.categories.some(cat => cat.id !== categoryId && cat.name.toLowerCase() === sanitizedName.toLowerCase())) {
+            return res.status(400).json({ error: 'Ya existe una categoría con ese nombre' });
+        }
+
+        const oldCategory = database.categories[categoryIndex];
+        database.categories[categoryIndex] = {
+            ...database.categories[categoryIndex],
+            name: sanitizedName,
+            description: sanitizedDescription,
+            updatedAt: new Date().toISOString()
+        };
+
+        const updatedCategory = database.categories[categoryIndex];
+
+        database.activityLog.push({
+            category: updatedCategory.name,
+            action: 'Categoría actualizada',
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Category updated', { categoryId, name: updatedCategory.name });
+
+        res.json({ success: true, category: updatedCategory });
+    } catch (error) {
+        writeLog('ERROR', 'Error updating category', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Delete category
+app.delete('/api/admin/categories/:id', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const categoryId = parseInt(req.params.id, 10);
+        const categoryIndex = database.categories.findIndex(c => c.id === categoryId);
+
+        if (categoryIndex === -1) {
+            return res.status(404).json({ error: 'Categoría no encontrada' });
+        }
+
+        const deletedCategory = database.categories[categoryIndex];
+
+        // Check if category is being used by products
+        const productsUsingCategory = database.products.filter(p => p.category === deletedCategory.name);
+        if (productsUsingCategory.length > 0) {
+            return res.status(400).json({ 
+                error: 'No se puede eliminar la categoría porque está siendo utilizada por productos',
+                count: productsUsingCategory.length
+            });
+        }
+
+        database.categories.splice(categoryIndex, 1);
+
+        database.activityLog.push({
+            category: deletedCategory.name,
+            action: 'Categoría eliminada',
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Category deleted', { categoryId, name: deletedCategory.name });
+
+        res.json({ success: true });
+    } catch (error) {
+        writeLog('ERROR', 'Error deleting category', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 // API Routes with pagination

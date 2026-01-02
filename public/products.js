@@ -1,7 +1,46 @@
 // Additional JavaScript for products.html
+let categories = [];
+
 document.addEventListener('DOMContentLoaded', function() {
     setupProductFilters();
+    loadCategories();
 });
+
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+            categories = await response.json();
+            updateCategoryFilter();
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+    }
+}
+
+function updateCategoryFilter() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (!categoryFilter) return;
+
+    // Save current selection
+    const currentValue = categoryFilter.value;
+
+    // Clear options except "All categories"
+    categoryFilter.innerHTML = '<option value="">Todas las categorías</option>';
+
+    // Add category options
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.name;
+        option.textContent = category.name;
+        categoryFilter.appendChild(option);
+    });
+
+    // Restore selection if it still exists
+    if (currentValue && categories.some(c => c.name === currentValue)) {
+        categoryFilter.value = currentValue;
+    }
+}
 
 function setupProductFilters() {
     const categoryFilter = document.getElementById('categoryFilter');
