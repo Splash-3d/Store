@@ -554,13 +554,15 @@ p {
 }
 
 /* ============================================================
-   13. FOOTER (compactado nivel 2)
+   13. FOOTER (consolidado y unificado)
    ============================================================ */
 
 footer {
     background: var(--primary-gradient);
     color: var(--primary-white);
     padding: var(--spacing-xl) 0 var(--spacing-md) !important;
+    margin-top: auto;
+    flex-shrink: 0;
     position: relative;
 }
 
