@@ -89,7 +89,7 @@ body {
     font-weight: var(--font-weight-normal);
     line-height: 1.55; /* compactado */
     color: var(--text-primary);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     margin: 0;
     padding: 0;
     min-height: 100vh;
@@ -346,19 +346,13 @@ p {
    ============================================================ */
 
 .stats-section {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.1) 0%, rgba(15, 52, 96, 0.1) 100%);
     padding: var(--spacing-xl) 0 !important;
     position: relative;
 }
 
 .stats-section:before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: var(--border-light);
+    display: none;
 }
 
 .stat-item {
