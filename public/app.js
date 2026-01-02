@@ -147,6 +147,30 @@ function removeFromCart(productId) {
     showToast('Producto eliminado del carrito', 'info');
 }
 
+// Update quantity in cart
+function updateQuantity(productId, change) {
+    const item = cart.find(item => item.id === productId);
+    if (!item) return;
+    
+    const newQuantity = item.quantity + change;
+    
+    if (newQuantity <= 0) {
+        removeFromCart(productId);
+        return;
+    }
+    
+    // Check stock availability
+    const product = products.find(p => p.id === productId);
+    if (product && newQuantity > product.stock) {
+        showToast(`No hay suficiente stock. Disponible: ${product.stock}`, 'error');
+        return;
+    }
+    
+    item.quantity = newQuantity;
+    updateCart();
+    showToast('Cantidad actualizada', 'success');
+}
+
 // Update cart display
 function updateCart() {
     const cartItems = document.getElementById('cartItems');
@@ -168,11 +192,21 @@ function updateCart() {
             <div class="flex-grow-1">
                 <h6 class="mb-0">${item.name}</h6>
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="badge bg-secondary">Cantidad: ${item.quantity}</span>
-                    <span class="fw-bold text-success">$${(item.price * item.quantity).toFixed(2)}</span>
-                    <button class="btn btn-sm btn-danger" onclick="removeFromCart(${item.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-sm btn-outline-secondary me-2" onclick="updateQuantity(${item.id}, -1)">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <span class="badge bg-secondary px-3 py-2">Cantidad: ${item.quantity}</span>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="updateQuantity(${item.id}, 1)">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-success me-3">$${(item.price * item.quantity).toFixed(2)}</span>
+                        <button class="btn btn-sm btn-danger" onclick="removeFromCart(${item.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
