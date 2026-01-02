@@ -624,12 +624,12 @@ a:hover {
 }
 
 /* ============================================================
-   13. FOOTER (completamente nuevo)
+   13. FOOTER (desde cero con colores del body)
    ============================================================ */
 
 footer {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d3748 50%, #000000 100%);
-    color: var(--primary-white);
+    background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 0%, #2d3748 50%, #000000 100%);
+    color: #ffffff;
     padding: var(--spacing-xl) 0 var(--spacing-md) !important;
     margin-top: auto;
     flex-shrink: 0;
@@ -656,7 +656,7 @@ footer:before {
 
 .footer-logo i {
     font-size: 2.5rem;
-    color: var(--primary-white);
+    color: #ffffff;
     transition: transform var(--transition-normal);
 }
 
@@ -667,7 +667,7 @@ footer:before {
 .brand-text {
     font-size: 1.2rem;
     font-weight: var(--font-weight-bold);
-    color: var(--primary-white);
+    color: #ffffff;
     text-decoration: none;
     transition: all var(--transition-normal);
 }
@@ -680,6 +680,12 @@ footer:before {
 footer p {
     margin-bottom: var(--spacing-sm) !important;
     color: rgba(255,255,255,0.85);
+}
+
+footer h5 {
+    margin-bottom: var(--spacing-sm) !important;
+    font-weight: var(--font-weight-bold);
+    color: #ffffff;
 }
 
 .social-links {
@@ -700,10 +706,12 @@ footer p {
 }
 
 .social-links a:hover {
-    background: var(--vibrant-coral);
+    background: rgba(255,255,255,0.2);
     transform: translateY(-3px);
     box-shadow: var(--shadow-soft);
-}/* ============================================================
+}
+
+/* ============================================================
    14. ADMIN LOGIN (compactado nivel 2)
    ============================================================ */
 
