@@ -870,16 +870,80 @@ app.post('/api/admin/logout', (req, res) => {
     }
 });
 
+// Cleanup orphaned images
+app.post('/api/admin/cleanup-images', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        cleanupOrphanedImages();
+        writeLog('INFO', 'Manual cleanup triggered by admin');
+        
+        res.json({ success: true, message: 'Limpieza completada' });
+    } catch (error) {
+        writeLog('ERROR', 'Manual cleanup error', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 // Serve the main application
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Cleanup orphaned images
+function cleanupOrphanedImages() {
+    try {
+        const uploadsDir = path.join(__dirname, 'uploads', 'products');
+        if (!fs.existsSync(uploadsDir)) {
+            return;
+        }
+
+        // Get all files in uploads directory
+        const uploadedFiles = fs.readdirSync(uploadsDir);
+        
+        // Get all product images from database
+        const productImages = new Set();
+        database.products.forEach(product => {
+            if (product.image) {
+                const filename = path.basename(product.image);
+                productImages.add(filename);
+            }
+        });
+
+        // Delete orphaned files
+        let deletedCount = 0;
+        uploadedFiles.forEach(file => {
+            if (!productImages.has(file)) {
+                const filePath = path.join(uploadsDir, file);
+                try {
+                    fs.unlinkSync(filePath);
+                    deletedCount++;
+                    writeLog('INFO', 'Orphaned image deleted', { filename: file });
+                } catch (error) {
+                    writeLog('WARNING', 'Failed to delete orphaned image', { filename: file, error: error.message });
+                }
+            }
+        });
+
+        if (deletedCount > 0) {
+            writeLog('INFO', 'Cleanup completed', { deletedFiles: deletedCount });
+        }
+    } catch (error) {
+        writeLog('ERROR', 'Error during cleanup', { error: error.message });
+    }
+}
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
     writeLog('INFO', 'Server started', { port: PORT });
     console.log(`Server running at http://0.0.0.0:${PORT}`);
     console.log(`Admin panel: http://0.0.0.0:${PORT}/admin/login.html`);
+    
+    // Run cleanup on startup
+    cleanupOrphanedImages();
 });
 
 // Cleanup expired sessions

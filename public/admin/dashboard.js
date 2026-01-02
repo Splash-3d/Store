@@ -824,6 +824,30 @@ function updateProductCategoryOptions() {
     }
 }
 
+async function cleanupImages() {
+    if (!confirm('¿Estás seguro de que quieres limpiar las imágenes huérfanas? Esta acción eliminará todas las imágenes que no están asociadas a ningún producto.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/cleanup-images', {
+            method: 'POST',
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            showNotification(result.message || 'Limpieza completada', 'success');
+        } else {
+            const error = await response.json();
+            showNotification(error.error || 'Error al limpiar imágenes', 'error');
+        }
+    } catch (error) {
+        console.error('Error cleaning up images:', error);
+        showNotification('Error al limpiar imágenes', 'error');
+    }
+}
+
 /* ---------------------------
    REAL-TIME UPDATES
 ---------------------------- */
