@@ -142,7 +142,15 @@ function addToCart(productId) {
 
 // Remove from cart
 function removeFromCart(productId) {
+    console.log('Removing product from cart:', productId);
+    console.log('Cart before removal:', cart);
+    
+    const initialLength = cart.length;
     cart = cart.filter(item => item.id !== productId);
+    
+    console.log('Cart after removal:', cart);
+    console.log('Items removed:', initialLength - cart.length);
+    
     updateCart();
     showToast('Producto eliminado del carrito', 'info');
 }
@@ -217,7 +225,9 @@ function updateCart() {
     if (cartTotal) cartTotal.textContent = total.toFixed(2);
     
     // Save cart to localStorage
+    console.log('Saving cart to localStorage:', cart);
     localStorage.setItem('cart', JSON.stringify(cart));
+    console.log('Cart saved successfully');
 }
 
 // Update stats
