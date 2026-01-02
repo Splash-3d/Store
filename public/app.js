@@ -68,7 +68,10 @@ function displayProducts() {
     container.innerHTML = products.map(product => `
         <div class="${columnClass} mb-4">
             <div class="card product-card h-100">
-                <img src="${product.image || 'https://picsum.photos/seed/product' + product.id + '/400/300'}" class="card-img-top" alt="${product.name}">
+                <img src="${product.image || 'https://picsum.photos/seed/product' + product.id + '/400/300'}" 
+                     class="card-img-top" 
+                     alt="${product.name}"
+                     onerror="this.src='https://picsum.photos/seed/placeholder' + ${product.id} + '/400/300'; this.onerror=function(){this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOUZDIi8+CjxwYXRoIGQ9Ik0xMzUgMTIwSDE2NlYxNDBIMTM1VjEyMFoiIGZpbGw9IiNEMUQ1REIiLz4KPHBhdGggZD0iTTE2NSAxMjBIMjM1VjE0MEgxNjVWMTIwWiIgZmlsbD0iI0QxRDVEQiIvPgo8cGF0aCBkPSJNMjM0IDEyMEgyNjVWMTQwSDIzNFYxMjBaIiBmaWxsPSIjRDFENUQ4Ii8+CjxwYXRoIGQ9Ik0xMzUgMTUwSDE2NlYxNzBIMTM1VjE1MFoiIGZpbGw9IiNEMUQ1REIiLz4KPHBhdGggZD0iTTE2NSAxNTBIMjM1VjE3MEgxNjVWMTUwWiIgZmlsbD0iI0QxRDVEQiIvPgo8cGF0aCBkPSJNMjM0IDE1MEgyNjVWMTcwSDIzNFYxNTBaIiBmaWxsPSIjRDFENUQ4Ii8+CjxwYXRoIGQ9Ik0xMzUgMTgwSDE2NlYyMDBIMTM1VjE4MFoiIGZpbGw9IiNEMUQ1REIiLz4KPHBhdGggZD0iTTE2NSAxODBIMjM1VjIwMEgxNjVWMTgwWiIgZmlsbD0iI0QxRDVEQiIvPgo8cGF0aCBkPSJNMjM0IDE4MEgyNjVWMjAwSDIzNFYxODBaIiBmaWxsPSIjRDFENUQ4Ii8+Cjx0ZXh0IHg9IjIwMCIgeT0iMjQwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjNjM3MjkxIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiPkltYWdlbiBubyBkaXNwb25pYmxlPC90ZXh0Pgo8L3N2Zz4=';}">
                 <div class="card-body">
                     <h5 class="card-title">${product.name}</h5>
                     <p class="card-text">${product.description}</p>
@@ -330,6 +333,45 @@ function loadCart() {
             localStorage.setItem('cart', JSON.stringify(cart));
         }
         
+        // Additional cleanup: remove items with broken images
+        cleanCartImages();
+        
         updateCart();
+    }
+}
+
+// Clean cart items with broken images
+async function cleanCartImages() {
+    const itemsToCheck = [...cart];
+    const validItems = [];
+    
+    for (const item of itemsToCheck) {
+        if (item.image && item.image.startsWith('https://')) {
+            try {
+                // Check if image exists
+                const response = await fetch(item.image, { method: 'HEAD' });
+                if (response.ok) {
+                    validItems.push(item);
+                } else {
+                    console.log('Removing item with broken image:', item.name, item.image);
+                }
+            } catch (error) {
+                console.log('Error checking image, removing item:', item.name, error);
+                // If we can't check the image, keep the item but remove the image reference
+                validItems.push({ ...item, image: null });
+            }
+        } else {
+            // Keep items without external images
+            validItems.push(item);
+        }
+    }
+    
+    if (validItems.length !== cart.length) {
+        console.log('Cleaned cart from broken images:', { 
+            old: cart.length, 
+            new: validItems.length 
+        });
+        cart = validItems;
+        localStorage.setItem('cart', JSON.stringify(cart));
     }
 }
