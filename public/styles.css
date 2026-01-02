@@ -96,7 +96,7 @@ body {
     font-weight: var(--font-weight-normal);
     line-height: 1.55; /* compactado */
     color: var(--text-primary);
-    background: linear-gradient(135deg, #e8f5e8 0%, #10b981 50%, #059669 100%);
+    background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 0%, #2d3748 50%, #000000 100%);
     margin: 0;
     padding: 0;
     display: flex;
@@ -560,7 +560,7 @@ p {
    ============================================================ */
 
 footer {
-    background: var(--primary-gradient);
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d3748 50%, #000000 100%);
     color: var(--primary-white);
     padding: var(--spacing-xl) 0 var(--spacing-md) !important;
     margin-top: auto;
