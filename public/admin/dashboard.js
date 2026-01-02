@@ -443,7 +443,15 @@ function editProduct(productId) {
     document.getElementById('productPrice').value = product.price;
     document.getElementById('productStock').value = product.stock || 0;
     document.getElementById('productDescription').value = product.description || '';
-    document.getElementById('productImage').value = product.image || '';
+    
+    // Don't set file input value - it's not allowed for security reasons
+    // Instead, we'll show the current image name if it exists
+    const imageField = document.getElementById('productImage');
+    if (imageField && product.image) {
+        // Just show the current image name, don't set the file input value
+        console.log('Current image:', product.image);
+    }
+    
     document.getElementById('productStatus').value = product.status;
     
     // Handle featured field safely
