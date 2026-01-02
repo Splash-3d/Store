@@ -151,8 +151,8 @@ function updateCart() {
     
     if (cart.length === 0) {
         cartItems.innerHTML = '<p class="text-center text-muted">Tu carrito está vacío.</p>';
-        cartCount.textContent = '0';
-        cartTotal.textContent = '0';
+        if (cartCount) cartCount.textContent = '0';
+        if (cartTotal) cartTotal.textContent = '0';
         return;
     }
     
@@ -173,8 +173,11 @@ function updateCart() {
     `).join('');
     
     const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    cartCount.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
-    cartTotal.textContent = total.toFixed(2);
+    if (cartCount) cartCount.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+    if (cartTotal) cartTotal.textContent = total.toFixed(2);
+    
+    // Save cart to localStorage
+    localStorage.setItem('cart', JSON.stringify(cart));
 }
 
 // Update stats
@@ -242,5 +245,11 @@ function setupRealTimeUpdates() {
     }, 30000);
 }
 
-// Initialize real-time updates
-setupRealTimeUpdates();
+// Load cart from localStorage
+function loadCart() {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+        cart = JSON.parse(savedCart);
+        updateCart();
+    }
+}
