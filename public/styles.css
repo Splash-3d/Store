@@ -120,26 +120,42 @@ footer {
     position: relative;
 }
 
-/* ============================================================
-   3. TIPOGRAFÍA (compactada)
-   ============================================================ */
+/* Update text colors for dark theme */
+.text-white {
+    color: #ffffff !important;
+}
 
+.text-light {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.text-dark {
+    color: #ffffff !important;
+}
+
+/* Update section titles for dark theme */
 h1, h2, h3, h4, h5, h6 {
     font-weight: var(--font-weight-bold);
     line-height: 1.15; /* compactado */
     margin-bottom: var(--spacing-md);
+    color: var(--primary-white);
 }
 
-h1 { font-size: 2.4rem; } /* compactado */
-h2 { font-size: 2rem; }   /* compactado */
-h3 { font-size: 1.6rem; } /* compactado */
-h4 { font-size: 1.3rem; }
-h5 { font-size: 1.1rem; }
-h6 { font-size: 1rem; }
-
+/* Update paragraphs for dark theme */
 p {
     margin-bottom: var(--spacing-md);
-    color: var(--dark-gray);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Update lead text for dark theme */
+.lead {
+    font-size: 1.25rem;
+    font-weight: var(--font-weight-light);
+    color: rgba(255, 255, 255, 0.95);
 }
 
 /* ============================================================
