@@ -57,7 +57,7 @@ function displayProducts() {
     if (!container) return;
     
     if (products.length === 0) {
-        container.innerHTML = '<div class="col-12 text-center"><p class="text-muted">No hay productos disponibles.</p></div>';
+        container.innerHTML = '<div class="col-12 text-center"><p class="text-light">No hay productos disponibles.</p></div>';
         return;
     }
     
@@ -98,7 +98,7 @@ function displayFeaturedProducts() {
     
     const featuredProducts = products.filter(p => p.featured && p.status === 'active');
     if (featuredProducts.length === 0) {
-        container.innerHTML = '<div class="col-12 text-center"><p class="text-muted">No hay productos destacados.</p></div>';
+        container.innerHTML = '<div class="col-12 text-center"><p class="text-light">No hay productos destacados.</p></div>';
         return;
     }
     

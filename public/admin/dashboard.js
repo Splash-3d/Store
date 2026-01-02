@@ -313,7 +313,7 @@ function displayProducts() {
     const tbody = document.getElementById('productsTable');
 
     if (products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No hay productos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-light">No hay productos</td></tr>';
         return;
     }
 
