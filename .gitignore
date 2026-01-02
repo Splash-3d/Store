@@ -123,9 +123,6 @@ database.json.tmp
 # Logs directory
 logs/
 
-# Public directory (moved from root)
-/public/
-
 # Build directories
 dist/
 build/
