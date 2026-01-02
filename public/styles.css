@@ -936,7 +936,111 @@ main {
 }
 
 /* ============================================================
-   24. UTILIDADES FINALES
+   25. MOBILE MODAL FIXES
+   ============================================================ */
+
+/* Mobile modal fixes */
+@media (max-width: 768px) {
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+    
+    .modal-content {
+        max-height: calc(100vh - 1rem);
+        overflow-y: auto;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .form-row {
+        flex-direction: column;
+    }
+    
+    .col-md-6 {
+        width: 100% !important;
+        margin-bottom: 1rem;
+    }
+    
+    /* Fix for product form on mobile */
+    #productForm .row {
+        flex-direction: column;
+    }
+    
+    #productForm .col-md-6 {
+        width: 100% !important;
+        margin-bottom: 1rem;
+    }
+    
+    /* Better mobile product display */
+    .product-card {
+        margin-bottom: 1rem;
+    }
+    
+    .product-card .card-img-top {
+        height: 200px !important;
+    }
+    
+    /* Fix sidebar mobile */
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 1rem;
+    }
+    
+    .mobile-toggle {
+        display: block !important;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 1001;
+        background: var(--primary-gradient);
+        color: white;
+        border: none;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        box-shadow: var(--shadow-medium);
+    }
+}
+
+/* Fix for file input on mobile */
+@media (max-width: 576px) {
+    .form-control[type="file"] {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    .modal-dialog {
+        margin: 0.25rem;
+        max-width: calc(100% - 0.5rem);
+    }
+    
+    .modal-body {
+        padding: 0.75rem;
+    }
+    
+    /* Product grid mobile fixes */
+    .products-grid .col-md-4 {
+        width: 100% !important;
+        margin-bottom: 1rem;
+    }
+    
+    .products-grid .col-sm-6 {
+        width: 50% !important;
+    }
+}
+
+/* ============================================================
+   26. UTILIDADES FINALES
    ============================================================ */
 
 .fade-in-up { animation: fadeInUp 0.55s ease-out; }

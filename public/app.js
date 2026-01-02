@@ -53,7 +53,7 @@ async function loadProducts() {
 
 // Display products in products page
 function displayProducts() {
-    const container = document.getElementById('productsContainer');
+    const container = document.getElementById('productsContainer') || document.getElementById('productsGrid');
     if (!container) return;
     
     if (products.length === 0) {
@@ -61,8 +61,12 @@ function displayProducts() {
         return;
     }
     
+    // Use responsive column classes
+    const columnClass = window.innerWidth <= 576 ? 'col-12' : 
+                       window.innerWidth <= 768 ? 'col-sm-6' : 'col-md-4';
+    
     container.innerHTML = products.map(product => `
-        <div class="col-md-4 mb-4">
+        <div class="${columnClass} mb-4">
             <div class="card product-card h-100">
                 <img src="${product.image || 'https://picsum.photos/seed/product' + product.id + '/400/300'}" class="card-img-top" alt="${product.name}">
                 <div class="card-body">

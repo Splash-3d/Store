@@ -4,7 +4,32 @@ let categories = [];
 document.addEventListener('DOMContentLoaded', function() {
     setupProductFilters();
     loadCategories();
+    fixMobileProductDisplay();
 });
+
+// Fix mobile product display
+function fixMobileProductDisplay() {
+    const productsGrid = document.getElementById('productsGrid');
+    if (!productsGrid) return;
+    
+    // Add responsive classes for mobile
+    if (window.innerWidth <= 576) {
+        // On mobile, show 1 column
+        productsGrid.classList.remove('row-cols-md-3', 'row-cols-sm-2');
+        productsGrid.classList.add('row-cols-1');
+    } else if (window.innerWidth <= 768) {
+        // On tablet, show 2 columns
+        productsGrid.classList.remove('row-cols-md-3', 'row-cols-1');
+        productsGrid.classList.add('row-cols-sm-2');
+    } else {
+        // On desktop, show 3 columns
+        productsGrid.classList.remove('row-cols-1', 'row-cols-sm-2');
+        productsGrid.classList.add('row-cols-md-3');
+    }
+}
+
+// Listen for resize events
+window.addEventListener('resize', fixMobileProductDisplay);
 
 async function loadCategories() {
     try {
