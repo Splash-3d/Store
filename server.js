@@ -108,6 +108,12 @@ function loadDatabase() {
                 username: 'Óscar',
                 passwordHash: 'd66a93e05da92d10ddaf5c55b93f3769613713cc5e3d581c1c6befcbf7cdb16f',
                 role: 'admin'
+            },
+            {
+                id: 3,
+                username: 'Gunnar',
+                passwordHash: crypto.createHash('sha256').update('SESAMO123').digest('hex'),
+                role: 'admin'
             }
         ],
         categories: [],
