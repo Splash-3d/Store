@@ -110,14 +110,15 @@ main {
     overflow-y: auto;
 }
 
-/* Ensure footer is always at bottom */
+/* Ensure footer is always at bottom - override Bootstrap classes */
 footer {
-    background: var(--primary-gradient);
-    color: var(--primary-white);
+    background: var(--primary-gradient) !important;
+    color: var(--primary-white) !important;
     padding: var(--spacing-xl) 0 var(--spacing-md) !important;
-    margin-top: auto;
-    flex-shrink: 0;
-    position: relative;
+    margin-top: auto !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    margin-bottom: 0 !important;
 }
 
 /* Update ALL text colors for dark theme */
