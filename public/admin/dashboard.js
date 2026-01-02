@@ -837,9 +837,16 @@ async function cleanupImages() {
 
         if (response.ok) {
             const result = await response.json();
+            console.log('Cleanup result:', result); // Debug log
             showNotification(result.message || 'Limpieza completada', 'success');
+            
+            // Show details if files were deleted
+            if (result.details && result.details.deletedCount > 0) {
+                console.log('Deleted files:', result.details.deletedFiles);
+            }
         } else {
             const error = await response.json();
+            console.error('Cleanup error:', error);
             showNotification(error.error || 'Error al limpiar imágenes', 'error');
         }
     } catch (error) {
