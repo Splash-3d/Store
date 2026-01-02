@@ -355,10 +355,16 @@ p {
     display: none;
 }
 
+/* Stats items directly on body */
 .stat-item {
     text-align: center;
-    padding: var(--spacing-lg) !important;
+    padding: var(--spacing-lg) var(--spacing-md) !important;
     transition: transform var(--transition-normal);
+    margin: var(--spacing-lg) 0;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stat-item:hover { transform: translateY(-4px); }
