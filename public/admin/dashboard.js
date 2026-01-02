@@ -426,20 +426,33 @@ function openProductModal() {
 }
 
 function editProduct(productId) {
+    console.log('Editing product:', productId);
     const product = products.find(p => p.id === productId);
-    if (!product) return;
+    if (!product) {
+        console.error('Product not found:', productId);
+        return;
+    }
 
+    console.log('Product found:', product);
     currentEditingProduct = product;
 
+    // Fill form fields
     document.getElementById('productId').value = product.id;
     document.getElementById('productName').value = product.name;
-    document.getElementById('productCategory').value = product.category;
+    document.getElementById('productCategory').value = product.category || '';
     document.getElementById('productPrice').value = product.price;
     document.getElementById('productStock').value = product.stock || 0;
-    document.getElementById('productDescription').value = product.description;
-    document.getElementById('productImage').value = product.image;
+    document.getElementById('productDescription').value = product.description || '';
+    document.getElementById('productImage').value = product.image || '';
     document.getElementById('productStatus').value = product.status;
-    document.getElementById('productFeatured').value = product.featured ? 'true' : 'false';
+    
+    // Handle featured field safely
+    const featuredField = document.getElementById('productFeatured');
+    if (featuredField) {
+        featuredField.value = product.featured ? 'true' : 'false';
+    } else {
+        console.warn('productFeatured field not found');
+    }
 
     document.getElementById('productModalTitle').innerHTML = '<i class="fas fa-edit me-2"></i>Editar Producto';
 
