@@ -121,7 +121,7 @@ footer {
     margin-bottom: 0 !important;
 }
 
-/* Update text colors for dark theme */
+/* Update ALL text colors for dark theme - ALL WHITE/LIGHT */
 .text-white {
     color: #ffffff !important;
 }
@@ -135,11 +135,11 @@ footer {
 }
 
 .text-dark {
-    color: var(--primary-black) !important;
+    color: #ffffff !important;
 }
 
 .text-primary {
-    color: var(--primary-black) !important;
+    color: #ffffff !important;
 }
 
 .text-secondary {
@@ -147,108 +147,67 @@ footer {
 }
 
 .text-success {
-    color: var(--success-green) !important;
+    color: #4ade80 !important;
 }
 
 .text-danger {
-    color: var(--danger-red) !important;
+    color: #ff6b6b !important;
 }
 
 .text-warning {
-    color: var(--warning-yellow) !important;
+    color: #ffd93d !important;
 }
 
 .text-info {
-    color: var(--info-blue) !important;
+    color: #4ecdc4 !important;
 }
 
-/* Update ALL text elements for dark theme */
+/* Update ALL text elements for dark theme - ALL WHITE/LIGHT */
 h1, h2, h3, h4, h5, h6 {
     font-weight: var(--font-weight-bold);
     line-height: 1.15; /* compactado */
     margin-bottom: var(--spacing-md);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    color: #ffffff;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    color: #ffffff !important;
 }
 
 p {
     margin-bottom: var(--spacing-md);
-    color: var(--dark-gray);
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.5) 0%, rgba(118, 75, 162, 0.5) 0%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: rgba(255, 255, 255, 0.9) !important;
 }
 
 span {
-    color: var(--text-primary);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: rgba(255, 255, 255, 0.85) !important;
 }
 
 div {
-    color: var(--text-primary);
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.5) 0%, rgba(118, 75, 162, 0.5) 0%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: rgba(255, 255, 255, 0.9) !important;
 }
 
 small {
-    color: var(--medium-gray);
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.5) 0%, rgba(118, 75, 162, 0.5) 0%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: rgba(255, 255, 255, 0.8) !important;
 }
 
 strong, b {
-    color: var(--text-primary);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #ffffff !important;
 }
 
 em, i {
-    color: var(--text-primary);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-    -webkit-background-gradient: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: rgba(255, 255, 255, 0.95) !important;
 }
 
 a {
-    color: var(--primary-black);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #4ecdc4 !important;
 }
 
 a:hover {
-    color: #ffffff;
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #4ade80 !important;
 }
 
-/* Update lead text for dark theme */
+/* Update lead text for dark theme - WHITE */
 .lead {
     font-size: 1.25rem;
     font-weight: var(--font-weight-light);
-    color: var(--text-primary);
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.5) 0%, rgba(118, 75, 162, 0.5) 0%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #ffffff !important;
 }
 
 /* ============================================================
@@ -258,7 +217,7 @@ a:hover {
 .text-uppercase { text-transform: uppercase; letter-spacing: 0.05em; }
 .font-weight-bold { font-weight: var(--font-weight-bold); }
 .font-weight-semibold { font-weight: var(--font-weight-semibold); }
-.text-primary { color: var(--primary-black) !important; }
+.text-primary { color: #ffffff !important; }
 .text-accent { color: var(--accent-orange) !important; }
 .bg-primary { background-color: var(--primary-black) !important; }
 .bg-light { background-color: var(--light-gray) !important; }
