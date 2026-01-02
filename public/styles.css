@@ -622,7 +622,7 @@ a:hover {
 footer {
     background: #ffffff !important;
     color: #000000 !important;
-    padding: var(--spacing-xl) 0 var(--spacing-md) !important;
+    padding: var(--spacing-md) 0 var(--spacing-sm) !important;
     margin-top: auto !important;
     flex-shrink: 0 !important;
     position: fixed !important;
@@ -636,18 +636,20 @@ footer {
 /* Footer textos */
 footer h5 {
     color: #000000 !important;
-    font-weight: var(--font-weight-bold);
-    margin-bottom: var(--spacing-sm);
+    font-weight: var(--font-weight-medium) !important;
+    margin-bottom: var(--spacing-xs) !important;
+    font-size: 0.9rem !important;
 }
 
 footer p {
     color: rgba(0, 0, 0, 0.6) !important;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs) !important;
+    font-size: 0.8rem !important;
 }
 
 footer .social-links a {
     color: #333333 !important;
-    font-size: 1.2rem;
+    font-size: 1rem !important;
     transition: all var(--transition-normal);
 }
 
