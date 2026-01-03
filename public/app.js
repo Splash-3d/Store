@@ -11,7 +11,40 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStats();
     });
     setupEventListeners();
+    initializeTheme();
 });
+
+// Theme toggle functionality
+function initializeTheme() {
+    // Check for saved theme preference or default to light
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+}
+
+function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    // Update theme icon
+    const themeIcon = document.getElementById('themeIcon');
+    if (themeIcon) {
+        themeIcon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+    }
+    
+    // Add transition effect
+    document.body.style.transition = 'background 0.3s ease, color 0.3s ease';
+    
+    // Remove transition after animation completes
+    setTimeout(() => {
+        document.body.style.transition = '';
+    }, 300);
+}
 
 // Open cart modal
 function openCartModal() {
