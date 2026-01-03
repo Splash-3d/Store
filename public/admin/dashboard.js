@@ -1253,13 +1253,10 @@ async function exportOrders() {
 ---------------------------- */
 
 let salesChart = null;
-let topProductsChart = null;
-let categoryChart = null;
 
 async function loadAnalytics() {
     try {
-        const period = document.getElementById('analyticsPeriod').value;
-        const response = await fetch(`/api/admin/analytics?period=${period}`, {
+        const response = await fetch('/api/admin/analytics', {
             headers: {
                 ...getAuthHeaders()
             }
@@ -1280,59 +1277,98 @@ async function loadAnalytics() {
 }
 
 function loadFallbackAnalytics() {
-    // No fallback data - only use real data from API
-    console.log('Analytics API unavailable - showing empty state');
+    // Calculate real stats from orders data
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    // Filter orders from current month
+    const monthOrders = orders.filter(order => {
+        const orderDate = new Date(order.date);
+        return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+    });
+    
+    // Calculate sales data for chart (daily sales this month)
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const salesData = [];
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayOrders = monthOrders.filter(order => {
+            const orderDate = new Date(order.date);
+            return orderDate.getDate() === day;
+        });
+        
+        salesData.push({
+            date: new Date(currentYear, currentMonth, day),
+            sales: dayOrders.reduce((sum, order) => sum + (order.total || 0), 0)
+        });
+    }
+    
+    // Calculate customer stats
+    const customerEmails = orders.map(order => order.customerEmail);
+    const uniqueCustomers = [...new Set(customerEmails)];
+    const customerCounts = {};
+    
+    customerEmails.forEach(email => {
+        customerCounts[email] = (customerCounts[email] || 0) + 1;
+    });
+    
+    const newCustomers = uniqueCustomers.filter(email => customerCounts[email] === 1).length;
+    const returningCustomers = uniqueCustomers.filter(email => customerCounts[email] > 1).length;
+    
     updateAnalyticsDisplay({
-        salesData: [],
-        totalSales: 0,
-        totalOrders: 0,
-        avgOrderValue: 0,
-        conversionRate: 0,
-        topProducts: [],
-        categoryData: [],
-        newCustomers: 0,
-        returningCustomers: 0,
-        customerRetention: 0,
-        customerLifetimeValue: 0
+        salesData: salesData,
+        totalSales: monthOrders.length,
+        totalRevenue: monthOrders.reduce((sum, order) => sum + (order.total || 0), 0),
+        newCustomers: newCustomers,
+        returningCustomers: returningCustomers
     });
 }
 
-
 function updateAnalyticsDisplay(data) {
     // Update summary stats
-    document.getElementById('totalSales').textContent = `$${data.totalSales.toFixed(2)}`;
-    document.getElementById('totalOrdersAnalytics').textContent = data.totalOrders;
-    document.getElementById('avgOrderValue').textContent = `$${data.avgOrderValue.toFixed(2)}`;
-    document.getElementById('conversionRate').textContent = `${data.conversionRate.toFixed(1)}%`;
+    document.getElementById('totalSales').textContent = data.totalSales;
+    document.getElementById('totalRevenue').textContent = `$${data.totalRevenue.toFixed(2)}`;
     
     // Update customer analytics
     document.getElementById('newCustomers').textContent = data.newCustomers;
     document.getElementById('returningCustomers').textContent = data.returningCustomers;
-    document.getElementById('customerRetention').textContent = `${data.customerRetention.toFixed(1)}%`;
-    document.getElementById('customerLifetimeValue').textContent = `$${data.customerLifetimeValue.toFixed(2)}`;
     
-    // Update charts
+    // Update sales chart
     updateSalesChart(data.salesData);
-    updateTopProductsChart(data.topProducts);
-    updateCategoryChart(data.categoryData);
 }
 
 function updateSalesChart(salesData) {
-    const ctx = document.getElementById('salesChart').getContext('2d');
+    const canvas = document.getElementById('salesChart');
+    if (!canvas) {
+        console.error('salesChart canvas not found');
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Could not get 2d context for salesChart');
+        return;
+    }
     
     if (salesChart) {
         salesChart.destroy();
     }
     
+    // Create chart even with empty data to show proper visualization
+    if (!salesData || salesData.length === 0) {
+        console.log('No sales data available, showing empty chart');
+        salesData = [];
+    }
+    
     salesChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: salesData.map(d => formatDate(d.date)),
+            labels: salesData.length > 0 ? salesData.map(d => formatDate(d.date)) : ['No hay datos'],
             datasets: [{
                 label: 'Ventas',
-                data: salesData.map(d => d.sales),
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                data: salesData.length > 0 ? salesData.map(d => d.sales) : [0],
+                borderColor: salesData.length > 0 ? 'rgb(75, 192, 192)' : 'rgba(200, 200, 200, 1)',
+                backgroundColor: salesData.length > 0 ? 'rgba(75, 192, 192, 0.2)' : 'rgba(200, 200, 200, 0.2)',
                 tension: 0.1
             }]
         },
@@ -1347,90 +1383,17 @@ function updateSalesChart(salesData) {
                         }
                     }
                 }
-            }
-        }
-    });
-}
-
-function updateTopProductsChart(topProducts) {
-    const canvas = document.getElementById('topProductsChart');
-    if (!canvas) {
-        console.error('topProductsChart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-        console.error('Could not get 2d context for topProductsChart');
-        return;
-    }
-    
-    if (topProductsChart) {
-        topProductsChart.destroy();
-    }
-    
-    // Ensure we have data
-    if (!topProducts || topProducts.length === 0) {
-        console.log('No top products data available');
-        return;
-    }
-    
-    console.log('Creating top products chart with data:', topProducts);
-    
-    topProductsChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: topProducts.map(p => p.name),
-            datasets: [{
-                label: 'Unidades Vendidas',
-                data: topProducts.map(p => p.sales),
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true
+            },
+            plugins: {
+                legend: {
+                    display: salesData.length > 0
+                },
+                title: {
+                    display: salesData.length === 0,
+                    text: 'No hay datos de ventas disponibles',
+                    color: '#666'
                 }
             }
-        }
-    });
-}
-
-function updateCategoryChart(categoryData) {
-    const ctx = document.getElementById('categoryChart').getContext('2d');
-    
-    if (categoryChart) {
-        categoryChart.destroy();
-    }
-    
-    categoryChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: categoryData.map(c => c.name),
-            datasets: [{
-                data: categoryData.map(c => c.sales),
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.2)',
-                    'rgba(54, 162, 235, 0.2)',
-                    'rgba(255, 205, 86, 0.2)',
-                    'rgba(75, 192, 192, 0.2)'
-                ],
-                borderColor: [
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(255, 205, 86, 1)',
-                    'rgba(75, 192, 192, 1)'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true
         }
     });
 }

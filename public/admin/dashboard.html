@@ -594,17 +594,9 @@
 
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2>Análisis y Estadísticas</h2>
-                    <div>
-                        <select class="form-select me-2" id="analyticsPeriod" style="width: auto; display: inline-block;">
-                            <option value="7">Últimos 7 días</option>
-                            <option value="30">Últimos 30 días</option>
-                            <option value="90">Últimos 90 días</option>
-                            <option value="365">Último año</option>
-                        </select>
-                        <button class="btn btn-success" onclick="refreshAnalytics()">
-                            <i class="fas fa-sync me-2"></i>Actualizar
-                        </button>
-                    </div>
+                    <button class="btn btn-success" onclick="refreshAnalytics()">
+                        <i class="fas fa-sync me-2"></i>Actualizar
+                    </button>
                 </div>
 
                 <!-- Sales Overview -->
@@ -612,7 +604,7 @@
                     <div class="col-md-8">
                         <div class="card">
                             <div class="card-header">
-                                <h5 class="mb-0">Ventas por Período</h5>
+                                <h5 class="mb-0">Ventas del Mes</h5>
                             </div>
                             <div class="card-body">
                                 <canvas id="salesChart" width="400" height="200"></canvas>
@@ -630,41 +622,9 @@
                                     <h4 class="text-success" id="totalSales">$0</h4>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Pedidos Totales</label>
-                                    <h4 class="text-info" id="totalOrdersAnalytics">0</h4>
+                                    <label class="form-label">Dinero Ganado</label>
+                                    <h4 class="text-primary" id="totalRevenue">$0</h4>
                                 </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Ticket Promedio</label>
-                                    <h4 class="text-primary" id="avgOrderValue">$0</h4>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Tasa de Conversión</label>
-                                    <h4 class="text-warning" id="conversionRate">0%</h4>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Product Performance & Categories -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Productos Más Vendidos</h5>
-                            </div>
-                            <div class="card-body">
-                                <canvas id="topProductsChart" width="400" height="200"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="mb-0">Ventas por Categoría</h5>
-                            </div>
-                            <div class="card-body">
-                                <canvas id="categoryChart" width="400" height="200"></canvas>
                             </div>
                         </div>
                     </div>
@@ -679,28 +639,16 @@
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-3">
+                                    <div class="col-md-6">
                                         <div class="text-center">
                                             <h3 class="text-primary" id="newCustomers">0</h3>
                                             <p class="text-muted">Nuevos Clientes</p>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-6">
                                         <div class="text-center">
                                             <h3 class="text-success" id="returningCustomers">0</h3>
                                             <p class="text-muted">Clientes Recurrentes</p>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="text-center">
-                                            <h3 class="text-info" id="customerRetention">0%</h3>
-                                            <p class="text-muted">Tasa de Retención</p>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <div class="text-center">
-                                            <h3 class="text-warning" id="customerLifetimeValue">$0</h3>
-                                            <p class="text-muted">Valor de Vida del Cliente</p>
                                         </div>
                                     </div>
                                 </div>
