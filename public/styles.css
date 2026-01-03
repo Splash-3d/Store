@@ -120,6 +120,11 @@
     color: var(--text-secondary) !important;
 }
 
+/* Override for featured products section messages */
+[data-theme="light"] .text-center p.text-light {
+    color: #718096 !important;
+}
+
 [data-theme="light"] .text-muted {
     color: var(--text-muted) !important;
 }
@@ -138,6 +143,11 @@
 
 [data-theme="light"] h1, [data-theme="light"] h2, [data-theme="light"] h3, [data-theme="light"] h4, [data-theme="light"] h5, [data-theme="light"] h6 {
     color: var(--text-primary) !important;
+}
+
+/* Override for featured products section */
+[data-theme="light"] h2.text-center.fw-bold {
+    color: #2d3748 !important;
 }
 
 [data-theme="light"] p {
