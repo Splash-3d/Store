@@ -409,11 +409,11 @@
 }
 
 [data-theme="dark"] .theme-toggle-bubble i {
-    color: #000000;
+    color: #000000 !important;
 }
 
 [data-theme="dark"] .theme-toggle-bubble:hover i {
-    color: #000000;
+    color: #000000 !important;
 }
 
 /* Mobile responsive */
