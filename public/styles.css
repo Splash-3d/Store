@@ -388,10 +388,6 @@
     transition: all 0.3s ease;
 }
 
-.theme-toggle-bubble:hover i {
-    color: #ffffff;
-}
-
 /* Light theme bubble styles */
 [data-theme="light"] .theme-toggle-bubble {
     background: linear-gradient(135deg, rgba(0, 127, 95, 0.95) 0%, rgba(43, 147, 72, 0.85) 100%);
@@ -404,6 +400,20 @@
 
 [data-theme="light"] .theme-toggle-bubble:hover i {
     color: #ffffff;
+}
+
+/* Dark theme bubble styles */
+[data-theme="dark"] .theme-toggle-bubble {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 240, 240, 0.85) 100%);
+    border: 3px solid rgba(200, 200, 200, 0.4);
+}
+
+[data-theme="dark"] .theme-toggle-bubble i {
+    color: #000000;
+}
+
+[data-theme="dark"] .theme-toggle-bubble:hover i {
+    color: #000000;
 }
 
 /* Mobile responsive */
