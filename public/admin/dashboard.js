@@ -1492,6 +1492,9 @@ async function saveAllSettings() {
 
         if (response.ok) {
             showNotification('Configuración guardada correctamente', 'success');
+            
+            // Apply settings to the store in real-time
+            applySettingsToStore(settings);
         } else {
             showNotification('Error al guardar la configuración', 'danger');
         }
@@ -1499,6 +1502,47 @@ async function saveAllSettings() {
         console.error('Error saving settings:', error);
         showNotification('Error de conexión', 'danger');
     }
+}
+
+function applySettingsToStore(settings) {
+    // Update store name in all pages
+    const storeNameElements = document.querySelectorAll('.navbar-brand');
+    storeNameElements.forEach(element => {
+        if (element.textContent.includes('Shop')) {
+            element.innerHTML = `<i class="fas fa-shopping-bag me-2"></i>${settings.storeName || 'Shop'}`;
+        }
+    });
+
+    // Update page titles
+    document.title = `${settings.storeName || 'Shop'} | ${getPageTitle()}`;
+
+    // Update footer
+    const footerElements = document.querySelectorAll('footer h5');
+    footerElements.forEach(element => {
+        if (element.textContent === 'Shop') {
+            element.textContent = settings.storeName || 'Shop';
+        }
+    });
+
+    // Update copyright
+    const copyrightElements = document.querySelectorAll('footer p');
+    copyrightElements.forEach(element => {
+        if (element.textContent.includes('Shop')) {
+            element.innerHTML = `&copy; 2026 ${settings.storeName || 'Shop'}. Todos los derechos reservados.`;
+        }
+    });
+
+    // Store settings in localStorage for other pages to use
+    localStorage.setItem('storeSettings', JSON.stringify(settings));
+}
+
+function getPageTitle() {
+    const path = window.location.pathname;
+    if (path.includes('index.html') || path === '/') return 'Inicio';
+    if (path.includes('products.html')) return 'Productos';
+    if (path.includes('about.html')) return 'Nosotros';
+    if (path.includes('admin/')) return 'Admin';
+    return 'Tienda';
 }
 
 async function backupDatabase() {
