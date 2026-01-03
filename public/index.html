@@ -13,8 +13,8 @@
 </head>
 <body>
     <!-- Floating Theme Toggle Button - Above all content -->
-    <div class="theme-toggle-bubble" onclick="toggleTheme()" title="Cambiar tema">
-        <i class="fas fa-sun" id="themeIcon"></i>
+    <div onclick="toggleTheme()" title="Cambiar tema" style="position: fixed; right: 30px; top: 50%; transform: translateY(-50%); width: 80px; height: 80px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 8px 25px rgba(0,0,0,0.3); z-index: 9999; border: 3px solid #007f5f;">
+        <i class="fas fa-sun" id="themeIcon" style="font-size: 2rem; color: black;"></i>
     </div>
     
     <!-- Header -->
@@ -44,7 +44,7 @@
                                 <span class="badge bg-danger rounded-pill cart-count" id="cartCount">0</span>
                             </a>
                         </li>
-                        <li class="nav-item ms-4">
+                        <li class="nav-item" style="margin-left: 4rem !important;">
                             <a class="nav-link btn btn-success text-white px-3" href="admin/login.html">
                                 <i class="fas fa-lock me-1"></i>Admin
                             </a>
