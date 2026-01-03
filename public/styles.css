@@ -417,11 +417,11 @@
 }
 
 /* Featured products section dark theme styles */
-[data-theme="dark"] .text-center.fw-bold {
+[data-theme="dark"] h2.text-center.fw-bold {
     color: #ffffff !important;
 }
 
-[data-theme="dark"] .text-light {
+[data-theme="dark"] .text-center p.text-light {
     color: #ffffff !important;
 }
 
@@ -438,11 +438,11 @@
 }
 
 /* Featured products section light theme styles */
-[data-theme="light"] .text-center.fw-bold {
+[data-theme="light"] h2.text-center.fw-bold {
     color: #2d3748 !important;
 }
 
-[data-theme="light"] .text-light {
+[data-theme="light"] .text-center p.text-light {
     color: #718096 !important;
 }
 
