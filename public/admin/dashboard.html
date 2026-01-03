@@ -511,20 +511,401 @@
                 </div>
             </div>
 
-            <!-- FUTURE SECTIONS (Orders, Analytics, Settings) -->
+            <!-- ORDERS SECTION -->
             <div id="ordersSection" class="content-section" style="display:none;">
-                <h2>Pedidos</h2>
-                <p class="text-muted">Módulo en desarrollo</p>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Gestión de Pedidos</h2>
+                    <div>
+                        <button class="btn btn-warning me-2" onclick="exportOrders()">
+                            <i class="fas fa-download me-2"></i>Exportar Pedidos
+                        </button>
+                        <button class="btn btn-success" onclick="refreshOrders()">
+                            <i class="fas fa-sync me-2"></i>Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" class="form-control" id="orderSearch" placeholder="Buscar pedidos...">
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <select class="form-select" id="statusFilter">
+                            <option value="">Todos los estados</option>
+                            <option value="pending">Pendiente</option>
+                            <option value="processing">Procesando</option>
+                            <option value="shipped">Enviado</option>
+                            <option value="delivered">Entregado</option>
+                            <option value="cancelled">Cancelado</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <select class="form-select" id="dateFilter">
+                            <option value="">Todas las fechas</option>
+                            <option value="today">Hoy</option>
+                            <option value="week">Esta semana</option>
+                            <option value="month">Este mes</option>
+                            <option value="year">Este año</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <select class="form-select" id="paymentFilter">
+                            <option value="">Todos los pagos</option>
+                            <option value="paid">Pagado</option>
+                            <option value="pending">Pendiente</option>
+                            <option value="failed">Fallido</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="product-table">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cliente</th>
+                                    <th>Fecha</th>
+                                    <th>Total</th>
+                                    <th>Estado</th>
+                                    <th>Pago</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTable">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">Cargando pedidos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
+            <!-- ANALYTICS SECTION -->
             <div id="analyticsSection" class="content-section" style="display:none;">
-                <h2>Análisis</h2>
-                <p class="text-muted">Módulo en desarrollo</p>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Análisis y Estadísticas</h2>
+                    <div>
+                        <select class="form-select me-2" id="analyticsPeriod" style="width: auto; display: inline-block;">
+                            <option value="7">Últimos 7 días</option>
+                            <option value="30">Últimos 30 días</option>
+                            <option value="90">Últimos 90 días</option>
+                            <option value="365">Último año</option>
+                        </select>
+                        <button class="btn btn-success" onclick="refreshAnalytics()">
+                            <i class="fas fa-sync me-2"></i>Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sales Overview -->
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Ventas por Período</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="salesChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Resumen de Ventas</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Total Ventas</label>
+                                    <h4 class="text-success" id="totalSales">$0</h4>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Pedidos Totales</label>
+                                    <h4 class="text-info" id="totalOrdersAnalytics">0</h4>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Ticket Promedio</label>
+                                    <h4 class="text-primary" id="avgOrderValue">$0</h4>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Tasa de Conversión</label>
+                                    <h4 class="text-warning" id="conversionRate">0%</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Performance & Categories -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Productos Más Vendidos</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="topProductsChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Ventas por Categoría</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="categoryChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Customer Analytics -->
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Análisis de Clientes</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h3 class="text-primary" id="newCustomers">0</h3>
+                                            <p class="text-muted">Nuevos Clientes</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h3 class="text-success" id="returningCustomers">0</h3>
+                                            <p class="text-muted">Clientes Recurrentes</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h3 class="text-info" id="customerRetention">0%</h3>
+                                            <p class="text-muted">Tasa de Retención</p>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="text-center">
+                                            <h3 class="text-warning" id="customerLifetimeValue">$0</h3>
+                                            <p class="text-muted">Valor de Vida del Cliente</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
+            <!-- SETTINGS SECTION -->
             <div id="settingsSection" class="content-section" style="display:none;">
-                <h2>Configuración</h2>
-                <p class="text-muted">Módulo en desarrollo</p>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Configuración de la Tienda</h2>
+                    <button class="btn btn-success" onclick="saveAllSettings()">
+                        <i class="fas fa-save me-2"></i>Guardar Todo
+                    </button>
+                </div>
+
+                <div class="row">
+                    <!-- General Settings -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Configuración General</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="generalSettings">
+                                    <div class="mb-3">
+                                        <label for="storeName" class="form-label">Nombre de la Tienda</label>
+                                        <input type="text" class="form-control" id="storeName" placeholder="Mi Tienda">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="storeEmail" class="form-label">Email de Contacto</label>
+                                        <input type="email" class="form-control" id="storeEmail" placeholder="contacto@mitienda.com">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="storePhone" class="form-label">Teléfono</label>
+                                        <input type="tel" class="form-control" id="storePhone" placeholder="+34 900 123 456">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="storeAddress" class="form-label">Dirección</label>
+                                        <textarea class="form-control" id="storeAddress" rows="2" placeholder="Calle Principal, 123, Ciudad, País"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="storeCurrency" class="form-label">Moneda</label>
+                                        <select class="form-select" id="storeCurrency">
+                                            <option value="EUR">EUR - Euro</option>
+                                            <option value="USD">USD - Dólar Americano</option>
+                                            <option value="GBP">GBP - Libra Esterlina</option>
+                                            <option value="JPY">JPY - Yen Japonés</option>
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notification Settings -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Notificaciones</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="notificationSettings">
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                                            <label class="form-check-label" for="emailNotifications">
+                                                Notificaciones por Email
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Recibir notificaciones de nuevos pedidos por email</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="lowStockAlert" checked>
+                                            <label class="form-check-label" for="lowStockAlert">
+                                                Alertas de Stock Bajo
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Alertar cuando el stock sea inferior a 5 unidades</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="adminEmail" class="form-label">Email del Administrador</label>
+                                        <input type="email" class="form-control" id="adminEmail" placeholder="admin@mitienda.com">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="lowStockThreshold" class="form-label">Umbral de Stock Bajo</label>
+                                        <input type="number" class="form-control" id="lowStockThreshold" value="5" min="1">
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Settings -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Métodos de Pago</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="paymentSettings">
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="enableStripe" checked>
+                                            <label class="form-check-label" for="enableStripe">
+                                                Stripe
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="stripePublicKey" class="form-label">Clave Pública de Stripe</label>
+                                        <input type="text" class="form-control" id="stripePublicKey" placeholder="pk_test_...">
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="enablePayPal">
+                                            <label class="form-check-label" for="enablePayPal">
+                                                PayPal
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="paypalEmail" class="form-label">Email de PayPal</label>
+                                        <input type="email" class="form-control" id="paypalEmail" placeholder="paypal@mitienda.com">
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shipping Settings -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Configuración de Envío</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="shippingSettings">
+                                    <div class="mb-3">
+                                        <label for="freeShippingThreshold" class="form-label">Envío Gratuito a partir de</label>
+                                        <input type="number" class="form-control" id="freeShippingThreshold" value="50" step="0.01">
+                                        <small class="text-muted">Monto mínimo para envío gratuito</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="standardShippingCost" class="form-label">Costo de Envío Estándar</label>
+                                        <input type="number" class="form-control" id="standardShippingCost" value="4.99" step="0.01">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="expressShippingCost" class="form-label">Costo de Envío Express</label>
+                                        <input type="number" class="form-control" id="expressShippingCost" value="9.99" step="0.01">
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="enableInternationalShipping">
+                                            <label class="form-check-label" for="enableInternationalShipping">
+                                                Habilitar Envío Internacional
+                                            </label>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Settings -->
+                    <div class="col-md-12 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Mantenimiento del Sistema</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <button class="btn btn-warning w-100 mb-2" onclick="backupDatabase()">
+                                            <i class="fas fa-database me-2"></i>Respaldo BD
+                                        </button>
+                                        <small class="text-muted d-block">Crear respaldo de la base de datos</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button class="btn btn-info w-100 mb-2" onclick="clearCache()">
+                                            <i class="fas fa-broom me-2"></i>Limpiar Caché
+                                        </button>
+                                        <small class="text-muted d-block">Limpiar caché del sistema</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button class="btn btn-secondary w-100 mb-2" onclick="exportData()">
+                                            <i class="fas fa-download me-2"></i>Exportar Datos
+                                        </button>
+                                        <small class="text-muted d-block">Exportar todos los datos</small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button class="btn btn-danger w-100 mb-2" onclick="resetSettings()">
+                                            <i class="fas fa-undo me-2"></i>Restablecer
+                                        </button>
+                                        <small class="text-muted d-block">Restablecer configuración</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -659,8 +1040,32 @@
         </div>
     </div>
 
+    <!-- ORDER DETAILS MODAL -->
+    <div class="modal fade" id="orderModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="orderModalTitle">
+                        <i class="fas fa-shopping-cart me-2"></i>Detalles del Pedido
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="orderDetails">
+                    <!-- Order details will be loaded dynamically -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-primary" id="updateOrderBtn" onclick="updateOrderStatus()">
+                        <i class="fas fa-save me-2"></i>Actualizar Estado
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="dashboard.js"></script>
 
 </body>

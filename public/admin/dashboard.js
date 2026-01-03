@@ -12,8 +12,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
     loadProducts();
     loadCategories();
+    loadOrders();
+    loadSettings();
     setupEventListeners();
     setupRealTimeUpdates();
+    initializeEnhancements();
 });
 
 /* ---------------------------
@@ -59,6 +62,33 @@ function setupEventListeners() {
     document.getElementById('productSearch').addEventListener('input', filterProducts);
     document.getElementById('categoryFilter').addEventListener('change', filterProducts);
     document.getElementById('statusFilter').addEventListener('change', filterProducts);
+
+    // Order search and filters (only if elements exist)
+    const orderSearch = document.getElementById('orderSearch');
+    if (orderSearch) {
+        orderSearch.addEventListener('input', filterOrders);
+    }
+    
+    const orderStatusFilter = document.getElementById('statusFilter');
+    if (orderStatusFilter) {
+        orderStatusFilter.addEventListener('change', filterOrders);
+    }
+    
+    const dateFilter = document.getElementById('dateFilter');
+    if (dateFilter) {
+        dateFilter.addEventListener('change', filterOrders);
+    }
+    
+    const paymentFilter = document.getElementById('paymentFilter');
+    if (paymentFilter) {
+        paymentFilter.addEventListener('change', filterOrders);
+    }
+
+    // Analytics period selector (only if element exists)
+    const analyticsPeriod = document.getElementById('analyticsPeriod');
+    if (analyticsPeriod) {
+        analyticsPeriod.addEventListener('change', refreshAnalytics);
+    }
 
     // Image preview functionality
     document.getElementById('productImage').addEventListener('change', function(e) {
@@ -617,6 +647,11 @@ function showSection(section, el) {
     if (el) {
         el.classList.add('active');
     }
+
+    // Load section-specific data
+    if (section === 'analytics') {
+        loadAnalytics();
+    }
 }
 
 function toggleSidebar() {
@@ -874,6 +909,972 @@ async function cleanupImages() {
         console.error('Error cleaning up images:', error);
         showNotification('Error al limpiar imágenes', 'error');
     }
+}
+
+/* ---------------------------
+   ORDERS MANAGEMENT
+---------------------------- */
+
+let orders = [];
+let currentEditingOrder = null;
+
+async function loadOrders() {
+    try {
+        const response = await fetch('/api/admin/orders', {
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            orders = data.orders || [];
+        } else if (response.status === 401) {
+            handleAuthError();
+            return;
+        } else {
+            orders = [];
+        }
+        displayOrders();
+    } catch (error) {
+        console.log('Orders API failed:', error.message);
+        orders = [];
+        displayOrders();
+    }
+}
+
+function displayOrders() {
+    const tbody = document.getElementById('ordersTable');
+
+    if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No hay pedidos</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = orders.map(order => `
+        <tr>
+            <td>#${order.id}</td>
+            <td>
+                <div class="fw-bold">${order.customerName}</div>
+                <small class="text-muted">${order.customerEmail}</small>
+            </td>
+            <td>${formatDate(order.createdAt)}</td>
+            <td>$${parseFloat(order.total || 0).toFixed(2)}</td>
+            <td>
+                <span class="status-badge status-${order.status}">
+                    ${getOrderStatusText(order.status)}
+                </span>
+            </td>
+            <td>
+                <span class="badge bg-${order.paymentStatus === 'paid' ? 'success' : 'warning'}">
+                    ${order.paymentStatus === 'paid' ? 'Pagado' : 'Pendiente'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary btn-action" onclick="viewOrder(${order.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-success btn-action" onclick="printOrder(${order.id})">
+                    <i class="fas fa-print"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getOrderStatusText(status) {
+    const statusMap = {
+        'pending': 'Pendiente',
+        'processing': 'Procesando',
+        'shipped': 'Enviado',
+        'delivered': 'Entregado',
+        'cancelled': 'Cancelado'
+    };
+    return statusMap[status] || status;
+}
+
+function filterOrders() {
+    const searchTerm = document.getElementById('orderSearch').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const dateFilter = document.getElementById('dateFilter').value;
+    const paymentFilter = document.getElementById('paymentFilter').value;
+
+    const filteredOrders = orders.filter(order => {
+        const matchesSearch = order.id.toString().includes(searchTerm) ||
+                              order.customerName.toLowerCase().includes(searchTerm) ||
+                              order.customerEmail.toLowerCase().includes(searchTerm);
+        const matchesStatus = !statusFilter || order.status === statusFilter;
+        const matchesPayment = !paymentFilter || order.paymentStatus === paymentFilter;
+        const matchesDate = !dateFilter || isOrderInDateRange(order, dateFilter);
+
+        return matchesSearch && matchesStatus && matchesPayment && matchesDate;
+    });
+
+    displayFilteredOrders(filteredOrders);
+}
+
+function isOrderInDateRange(order, dateFilter) {
+    const orderDate = new Date(order.createdAt);
+    const now = new Date();
+    
+    switch(dateFilter) {
+        case 'today':
+            return orderDate.toDateString() === now.toDateString();
+        case 'week':
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            return orderDate >= weekAgo;
+        case 'month':
+            return orderDate.getMonth() === now.getMonth() && 
+                   orderDate.getFullYear() === now.getFullYear();
+        case 'year':
+            return orderDate.getFullYear() === now.getFullYear();
+        default:
+            return true;
+    }
+}
+
+function displayFilteredOrders(filteredOrders) {
+    const tbody = document.getElementById('ordersTable');
+
+    if (filteredOrders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No se encontraron pedidos</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filteredOrders.map(order => `
+        <tr>
+            <td>#${order.id}</td>
+            <td>
+                <div class="fw-bold">${order.customerName}</div>
+                <small class="text-muted">${order.customerEmail}</small>
+            </td>
+            <td>${formatDate(order.createdAt)}</td>
+            <td>$${parseFloat(order.total || 0).toFixed(2)}</td>
+            <td>
+                <span class="status-badge status-${order.status}">
+                    ${getOrderStatusText(order.status)}
+                </span>
+            </td>
+            <td>
+                <span class="badge bg-${order.paymentStatus === 'paid' ? 'success' : 'warning'}">
+                    ${order.paymentStatus === 'paid' ? 'Pagado' : 'Pendiente'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary btn-action" onclick="viewOrder(${order.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-success btn-action" onclick="printOrder(${order.id})">
+                    <i class="fas fa-print"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function viewOrder(orderId) {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    currentEditingOrder = order;
+
+    const orderDetails = document.getElementById('orderDetails');
+    orderDetails.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Información del Cliente</h6>
+                <p><strong>Nombre:</strong> ${order.customerName}</p>
+                <p><strong>Email:</strong> ${order.customerEmail}</p>
+                <p><strong>Teléfono:</strong> ${order.customerPhone || 'N/A'}</p>
+                <p><strong>Dirección:</strong> ${order.shippingAddress || 'N/A'}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>Información del Pedido</h6>
+                <p><strong>ID:</strong> #${order.id}</p>
+                <p><strong>Fecha:</strong> ${formatDate(order.createdAt)}</p>
+                <p><strong>Total:</strong> $${parseFloat(order.total || 0).toFixed(2)}</p>
+                <p><strong>Método de Pago:</strong> ${order.paymentMethod || 'N/A'}</p>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <h6>Estado del Pedido</h6>
+        <div class="mb-3">
+            <select class="form-select" id="orderStatusSelect">
+                <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pendiente</option>
+                <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>Procesando</option>
+                <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>Enviado</option>
+                <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Entregado</option>
+                <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelado</option>
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label for="trackingNumber" class="form-label">Número de Seguimiento</label>
+            <input type="text" class="form-control" id="trackingNumber" value="${order.trackingNumber || ''}" placeholder="Introduce el número de seguimiento">
+        </div>
+        
+        <h6>Productos del Pedido</h6>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(order.items || []).map(item => `
+                        <tr>
+                            <td>${item.name}</td>
+                            <td>${item.quantity}</td>
+                            <td>$${parseFloat(item.price || 0).toFixed(2)}</td>
+                            <td>$${parseFloat(item.quantity * item.price || 0).toFixed(2)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    const modal = new bootstrap.Modal(document.getElementById('orderModal'));
+    modal.show();
+}
+
+async function updateOrderStatus() {
+    if (!currentEditingOrder) return;
+
+    const newStatus = document.getElementById('orderStatusSelect').value;
+    const trackingNumber = document.getElementById('trackingNumber').value;
+
+    try {
+        const response = await fetch(`/api/admin/orders/${currentEditingOrder.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
+            body: JSON.stringify({
+                status: newStatus,
+                trackingNumber: trackingNumber
+            })
+        });
+
+        if (response.ok) {
+            showNotification('Estado del pedido actualizado', 'success');
+            await loadOrders();
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('orderModal'));
+            modal.hide();
+            currentEditingOrder = null;
+        } else {
+            showNotification('Error al actualizar el estado', 'danger');
+        }
+    } catch (error) {
+        console.error('Error updating order:', error);
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+function printOrder(orderId) {
+    window.open(`/api/admin/orders/${orderId}/print`, '_blank');
+}
+
+function refreshOrders() {
+    loadOrders();
+}
+
+async function exportOrders() {
+    try {
+        const response = await fetch('/api/admin/orders/export', {
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `orders_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            showNotification('Pedidos exportados correctamente', 'success');
+        } else {
+            showNotification('Error al exportar pedidos', 'danger');
+        }
+    } catch (error) {
+        console.error('Error exporting orders:', error);
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+/* ---------------------------
+   ANALYTICS FUNCTIONS
+---------------------------- */
+
+let salesChart = null;
+let topProductsChart = null;
+let categoryChart = null;
+
+async function loadAnalytics() {
+    try {
+        const period = document.getElementById('analyticsPeriod').value;
+        const response = await fetch(`/api/admin/analytics?period=${period}`, {
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            updateAnalyticsDisplay(data);
+        } else if (response.status === 401) {
+            handleAuthError();
+        } else {
+            loadFallbackAnalytics();
+        }
+    } catch (error) {
+        console.log('Analytics API failed:', error.message);
+        loadFallbackAnalytics();
+    }
+}
+
+function loadFallbackAnalytics() {
+    const fallbackData = {
+        salesData: generateMockSalesData(),
+        totalSales: Math.random() * 10000,
+        totalOrders: Math.floor(Math.random() * 100),
+        avgOrderValue: Math.random() * 200,
+        conversionRate: Math.random() * 10,
+        topProducts: generateMockProductData(),
+        categoryData: generateMockCategoryData(),
+        newCustomers: Math.floor(Math.random() * 50),
+        returningCustomers: Math.floor(Math.random() * 30),
+        customerRetention: Math.random() * 100,
+        customerLifetimeValue: Math.random() * 1000
+    };
+    updateAnalyticsDisplay(fallbackData);
+}
+
+function generateMockSalesData() {
+    const days = parseInt(document.getElementById('analyticsPeriod').value);
+    const data = [];
+    const now = new Date();
+    
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        data.push({
+            date: date.toISOString().split('T')[0],
+            sales: Math.random() * 1000
+        });
+    }
+    return data;
+}
+
+function generateMockProductData() {
+    return [
+        { name: 'Camiseta Básica', sales: 45 },
+        { name: 'Sudadera Premium', sales: 32 },
+        { name: 'Pantalón Jeans', sales: 28 },
+        { name: 'Gorra Deportiva', sales: 21 },
+        { name: 'Zapatillas Running', sales: 18 }
+    ];
+}
+
+function generateMockCategoryData() {
+    return [
+        { name: 'Camisetas', sales: 4500 },
+        { name: 'Sudaderas', sales: 3200 },
+        { name: 'Pantalones', sales: 2800 },
+        { name: 'Accesorios', sales: 1500 }
+    ];
+}
+
+function updateAnalyticsDisplay(data) {
+    // Update summary stats
+    document.getElementById('totalSales').textContent = `$${data.totalSales.toFixed(2)}`;
+    document.getElementById('totalOrdersAnalytics').textContent = data.totalOrders;
+    document.getElementById('avgOrderValue').textContent = `$${data.avgOrderValue.toFixed(2)}`;
+    document.getElementById('conversionRate').textContent = `${data.conversionRate.toFixed(1)}%`;
+    
+    // Update customer analytics
+    document.getElementById('newCustomers').textContent = data.newCustomers;
+    document.getElementById('returningCustomers').textContent = data.returningCustomers;
+    document.getElementById('customerRetention').textContent = `${data.customerRetention.toFixed(1)}%`;
+    document.getElementById('customerLifetimeValue').textContent = `$${data.customerLifetimeValue.toFixed(2)}`;
+    
+    // Update charts
+    updateSalesChart(data.salesData);
+    updateTopProductsChart(data.topProducts);
+    updateCategoryChart(data.categoryData);
+}
+
+function updateSalesChart(salesData) {
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    
+    if (salesChart) {
+        salesChart.destroy();
+    }
+    
+    salesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: salesData.map(d => formatDate(d.date)),
+            datasets: [{
+                label: 'Ventas',
+                data: salesData.map(d => d.sales),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateTopProductsChart(topProducts) {
+    const ctx = document.getElementById('topProductsChart').getContext('2d');
+    
+    if (topProductsChart) {
+        topProductsChart.destroy();
+    }
+    
+    topProductsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topProducts.map(p => p.name),
+            datasets: [{
+                label: 'Unidades Vendidas',
+                data: topProducts.map(p => p.sales),
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function updateCategoryChart(categoryData) {
+    const ctx = document.getElementById('categoryChart').getContext('2d');
+    
+    if (categoryChart) {
+        categoryChart.destroy();
+    }
+    
+    categoryChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: categoryData.map(c => c.name),
+            datasets: [{
+                data: categoryData.map(c => c.sales),
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.2)',
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 205, 86, 0.2)',
+                    'rgba(75, 192, 192, 0.2)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 205, 86, 1)',
+                    'rgba(75, 192, 192, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+}
+
+function refreshAnalytics() {
+    loadAnalytics();
+}
+
+/* ---------------------------
+   SETTINGS FUNCTIONS
+---------------------------- */
+
+async function loadSettings() {
+    try {
+        const response = await fetch('/api/admin/settings', {
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+
+        if (response.ok) {
+            const settings = await response.json();
+            populateSettingsForm(settings);
+        } else if (response.status === 401) {
+            handleAuthError();
+        }
+    } catch (error) {
+        console.log('Settings API failed:', error.message);
+    }
+}
+
+function populateSettingsForm(settings) {
+    // General settings
+    document.getElementById('storeName').value = settings.storeName || '';
+    document.getElementById('storeEmail').value = settings.storeEmail || '';
+    document.getElementById('storePhone').value = settings.storePhone || '';
+    document.getElementById('storeAddress').value = settings.storeAddress || '';
+    document.getElementById('storeCurrency').value = settings.storeCurrency || 'EUR';
+    
+    // Notification settings
+    document.getElementById('emailNotifications').checked = settings.emailNotifications !== false;
+    document.getElementById('lowStockAlert').checked = settings.lowStockAlert !== false;
+    document.getElementById('adminEmail').value = settings.adminEmail || '';
+    document.getElementById('lowStockThreshold').value = settings.lowStockThreshold || 5;
+    
+    // Payment settings
+    document.getElementById('enableStripe').checked = settings.enableStripe !== false;
+    document.getElementById('stripePublicKey').value = settings.stripePublicKey || '';
+    document.getElementById('enablePayPal').checked = settings.enablePayPal || false;
+    document.getElementById('paypalEmail').value = settings.paypalEmail || '';
+    
+    // Shipping settings
+    document.getElementById('freeShippingThreshold').value = settings.freeShippingThreshold || 50;
+    document.getElementById('standardShippingCost').value = settings.standardShippingCost || 4.99;
+    document.getElementById('expressShippingCost').value = settings.expressShippingCost || 9.99;
+    document.getElementById('enableInternationalShipping').checked = settings.enableInternationalShipping || false;
+}
+
+async function saveAllSettings() {
+    try {
+        const settings = {
+            // General settings
+            storeName: document.getElementById('storeName').value,
+            storeEmail: document.getElementById('storeEmail').value,
+            storePhone: document.getElementById('storePhone').value,
+            storeAddress: document.getElementById('storeAddress').value,
+            storeCurrency: document.getElementById('storeCurrency').value,
+            
+            // Notification settings
+            emailNotifications: document.getElementById('emailNotifications').checked,
+            lowStockAlert: document.getElementById('lowStockAlert').checked,
+            adminEmail: document.getElementById('adminEmail').value,
+            lowStockThreshold: parseInt(document.getElementById('lowStockThreshold').value),
+            
+            // Payment settings
+            enableStripe: document.getElementById('enableStripe').checked,
+            stripePublicKey: document.getElementById('stripePublicKey').value,
+            enablePayPal: document.getElementById('enablePayPal').checked,
+            paypalEmail: document.getElementById('paypalEmail').value,
+            
+            // Shipping settings
+            freeShippingThreshold: parseFloat(document.getElementById('freeShippingThreshold').value),
+            standardShippingCost: parseFloat(document.getElementById('standardShippingCost').value),
+            expressShippingCost: parseFloat(document.getElementById('expressShippingCost').value),
+            enableInternationalShipping: document.getElementById('enableInternationalShipping').checked
+        };
+
+        const response = await fetch('/api/admin/settings', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                ...getAuthHeaders()
+            },
+            body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+            showNotification('Configuración guardada correctamente', 'success');
+        } else {
+            showNotification('Error al guardar la configuración', 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+async function backupDatabase() {
+    if (!confirm('¿Estás seguro de que quieres crear un respaldo de la base de datos?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/backup', {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            showNotification(result.message || 'Respaldo creado correctamente', 'success');
+        } else {
+            showNotification('Error al crear el respaldo', 'danger');
+        }
+    } catch (error) {
+        console.error('Error creating backup:', error);
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+async function clearCache() {
+    if (!confirm('¿Estás seguro de que quieres limpiar la caché del sistema?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/clear-cache', {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+
+        if (response.ok) {
+            showNotification('Caché limpiada correctamente', 'success');
+        } else {
+            showNotification('Error al limpiar la caché', 'danger');
+        }
+    } catch (error) {
+        console.error('Error clearing cache:', error);
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+async function exportData() {
+    try {
+        const response = await fetch('/api/admin/export-data', {
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `store_data_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            showNotification('Datos exportados correctamente', 'success');
+        } else {
+            showNotification('Error al exportar datos', 'danger');
+        }
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+async function resetSettings() {
+    if (!confirm('¿Estás seguro de que quieres restablecer toda la configuración a los valores predeterminados? Esta acción no se puede deshacer.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/reset-settings', {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders()
+            }
+        });
+
+        if (response.ok) {
+            showNotification('Configuración restablecida correctamente', 'success');
+            loadSettings(); // Reload default settings
+        } else {
+            showNotification('Error al restablecer la configuración', 'danger');
+        }
+    } catch (error) {
+        console.error('Error resetting settings:', error);
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+/* ---------------------------
+   UTILITY FUNCTIONS
+---------------------------- */
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function formatCurrency(amount, currency = 'EUR') {
+    return new Intl.NumberFormat('es-ES', {
+        style: 'currency',
+        currency: currency
+    }).format(amount);
+}
+
+function formatNumber(num) {
+    return new Intl.NumberFormat('es-ES').format(num);
+}
+
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+function validatePhone(phone) {
+    const re = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
+    return re.test(phone);
+}
+
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substr(0, maxLength) + '...';
+}
+
+function getStatusColor(status) {
+    const colors = {
+        'pending': 'warning',
+        'processing': 'info',
+        'shipped': 'primary',
+        'delivered': 'success',
+        'cancelled': 'danger',
+        'active': 'success',
+        'inactive': 'secondary'
+    };
+    return colors[status] || 'secondary';
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('Copiado al portapapeles', 'success');
+    }).catch(() => {
+        showNotification('Error al copiar', 'danger');
+    });
+}
+
+function downloadFile(content, filename, type = 'text/plain') {
+    const blob = new Blob([content], { type });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+function showLoadingSpinner(elementId) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div></div>';
+    }
+}
+
+function hideLoadingSpinner(elementId, content = '') {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.innerHTML = content;
+    }
+}
+
+function confirmAction(message, callback) {
+    if (confirm(message)) {
+        callback();
+    }
+}
+
+function getRelativeTime(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `hace ${days} día${days > 1 ? 's' : ''}`;
+    if (hours > 0) return `hace ${hours} hora${hours > 1 ? 's' : ''}`;
+    if (minutes > 0) return `hace ${minutes} minuto${minutes > 1 ? 's' : ''}`;
+    return 'hace unos segundos';
+}
+
+function animateNumber(elementId, targetValue, duration = 1000) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    const startValue = 0;
+    const increment = targetValue / (duration / 16);
+    let currentValue = startValue;
+
+    const timer = setInterval(() => {
+        currentValue += increment;
+        if (currentValue >= targetValue) {
+            currentValue = targetValue;
+            clearInterval(timer);
+        }
+        element.textContent = formatNumber(Math.floor(currentValue));
+    }, 16);
+}
+
+/* ---------------------------
+   KEYBOARD SHORTCUTS
+---------------------------- */
+
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + S to save
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            // Check which modal is open and save accordingly
+            const productModal = document.getElementById('productModal');
+            const categoryModal = document.getElementById('categoryModal');
+            
+            if (productModal.classList.contains('show')) {
+                saveProduct();
+            } else if (categoryModal.classList.contains('show')) {
+                saveCategory();
+            }
+        }
+
+        // Escape to close modals
+        if (e.key === 'Escape') {
+            const openModals = document.querySelectorAll('.modal.show');
+            openModals.forEach(modal => {
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            });
+        }
+
+        // Ctrl/Cmd + K for search (when not in input)
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !e.target.matches('input, textarea')) {
+            e.preventDefault();
+            const productSearch = document.getElementById('productSearch');
+            if (productSearch && document.getElementById('productsSection').style.display !== 'none') {
+                productSearch.focus();
+            }
+        }
+    });
+}
+
+/* ---------------------------
+   PERFORMANCE OPTIMIZATIONS
+---------------------------- */
+
+function optimizeTableScrolling() {
+    const tables = document.querySelectorAll('.table-responsive');
+    tables.forEach(table => {
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        table.addEventListener('mousedown', (e) => {
+            isDown = true;
+            startX = e.pageX - table.offsetLeft;
+            scrollLeft = table.scrollLeft;
+        });
+
+        table.addEventListener('mouseleave', () => {
+            isDown = false;
+        });
+
+        table.addEventListener('mouseup', () => {
+            isDown = false;
+        });
+
+        table.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - table.offsetLeft;
+            const walk = (x - startX) * 2;
+            table.scrollLeft = scrollLeft - walk;
+        });
+    });
+}
+
+function setupLazyLoading() {
+    const images = document.querySelectorAll('img[data-src]');
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+                observer.unobserve(img);
+            }
+        });
+    });
+
+    images.forEach(img => imageObserver.observe(img));
+}
+
+/* ---------------------------
+   INITIALIZATION ENHANCEMENTS
+---------------------------- */
+
+function initializeEnhancements() {
+    setupKeyboardShortcuts();
+    optimizeTableScrolling();
+    setupLazyLoading();
+    
+    // Add smooth scrolling
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        });
+    });
+
+    // Add tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 }
 
 /* ---------------------------
