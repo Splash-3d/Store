@@ -437,6 +437,27 @@
     color: #ffffff !important;
 }
 
+/* Featured products section light theme styles */
+[data-theme="light"] .text-center.fw-bold {
+    color: #2d3748 !important;
+}
+
+[data-theme="light"] .text-light {
+    color: #718096 !important;
+}
+
+[data-theme="light"] .btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+    border-color: #28a745 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="light"] .btn-success:hover {
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%) !important;
+    border-color: #218838 !important;
+    color: #ffffff !important;
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
     .theme-toggle-bubble {
