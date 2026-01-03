@@ -889,6 +889,425 @@ app.post('/api/admin/logout', (req, res) => {
     }
 });
 
+// Orders API endpoints
+app.get('/api/admin/orders', (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+        
+        const total = database.orders.length;
+        const orders = database.orders.slice(skip, skip + limit);
+        
+        res.json({
+            orders,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching orders', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.get('/api/admin/orders/:id', (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const orderId = parseInt(req.params.id, 10);
+        const order = database.orders.find(o => o.id === orderId);
+        
+        if (!order) {
+            return res.status(404).json({ error: 'Pedido no encontrado' });
+        }
+        
+        res.json(order);
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching order', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.put('/api/admin/orders/:id', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const orderId = parseInt(req.params.id, 10);
+        const orderIndex = database.orders.findIndex(o => o.id === orderId);
+        
+        if (orderIndex === -1) {
+            return res.status(404).json({ error: 'Pedido no encontrado' });
+        }
+
+        const { status, trackingNumber } = req.body;
+        
+        // Validate status
+        const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+        if (status && !validStatuses.includes(status)) {
+            return res.status(400).json({ error: 'Estado inválido' });
+        }
+
+        const oldOrder = database.orders[orderIndex];
+        database.orders[orderIndex] = {
+            ...database.orders[orderIndex],
+            ...(status && { status }),
+            ...(trackingNumber !== undefined && { trackingNumber }),
+            updatedAt: new Date().toISOString()
+        };
+
+        database.activityLog.push({
+            product: `Pedido #${orderId}`,
+            action: `Estado actualizado a: ${status || oldOrder.status}`,
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Order updated', { orderId, status });
+
+        res.json({ success: true, order: database.orders[orderIndex] });
+    } catch (error) {
+        writeLog('ERROR', 'Error updating order', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.get('/api/admin/orders/export', (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        // Generate CSV
+        const csvHeader = 'ID,Cliente,Email,Total,Estado,Fecha de Creación\n';
+        const csvData = database.orders.map(order => 
+            `${order.id},"${order.customerName}","${order.customerEmail}",${order.total},${order.status},${order.createdAt}`
+        ).join('\n');
+        
+        const csv = csvHeader + csvData;
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="orders_${new Date().toISOString().split('T')[0]}.csv"`);
+        res.send(csv);
+    } catch (error) {
+        writeLog('ERROR', 'Error exporting orders', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Analytics API endpoints
+app.get('/api/admin/analytics', (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const period = parseInt(req.query.period) || 30;
+        const now = new Date();
+        const startDate = new Date(now.getTime() - period * 24 * 60 * 60 * 1000);
+
+        // Filter orders by period
+        const periodOrders = database.orders.filter(order => 
+            new Date(order.createdAt) >= startDate
+        );
+
+        // Calculate sales data
+        const salesData = [];
+        for (let i = period - 1; i >= 0; i--) {
+            const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+            const dateStr = date.toISOString().split('T')[0];
+            const dayOrders = periodOrders.filter(order => 
+                order.createdAt.startsWith(dateStr)
+            );
+            const daySales = dayOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+            
+            salesData.push({ date: dateStr, sales: daySales });
+        }
+
+        // Calculate metrics
+        const totalSales = periodOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+        const totalOrders = periodOrders.length;
+        const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+        
+        // Calculate conversion rate (simplified)
+        const totalVisitors = 1000; // This would come from analytics tracking
+        const conversionRate = totalVisitors > 0 ? (totalOrders / totalVisitors) * 100 : 0;
+
+        // Top products
+        const productSales = {};
+        periodOrders.forEach(order => {
+            if (order.items) {
+                order.items.forEach(item => {
+                    productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
+                });
+            }
+        });
+        
+        const topProducts = Object.entries(productSales)
+            .map(([name, sales]) => ({ name, sales }))
+            .sort((a, b) => b.sales - a.sales)
+            .slice(0, 5);
+
+        // Category data
+        const categorySales = {};
+        database.products.forEach(product => {
+            if (product.status === 'active') {
+                categorySales[product.category] = (categorySales[product.category] || 0) + (product.sales || 0);
+            }
+        });
+
+        const categoryData = Object.entries(categorySales)
+            .map(([name, sales]) => ({ name, sales }))
+            .filter(item => item.name);
+
+        // Customer analytics
+        const uniqueCustomers = new Set(periodOrders.map(order => order.customerEmail)).size;
+        const returningCustomers = periodOrders.filter(order => {
+            const previousOrders = database.orders.filter(o => 
+                o.customerEmail === order.customerEmail && 
+                new Date(o.createdAt) < new Date(order.createdAt)
+            );
+            return previousOrders.length > 0;
+        }).length;
+
+        const customerRetention = uniqueCustomers > 0 ? (returningCustomers / uniqueCustomers) * 100 : 0;
+        const customerLifetimeValue = uniqueCustomers > 0 ? totalSales / uniqueCustomers : 0;
+
+        res.json({
+            salesData,
+            totalSales,
+            totalOrders,
+            avgOrderValue,
+            conversionRate,
+            topProducts,
+            categoryData,
+            newCustomers: uniqueCustomers - returningCustomers,
+            returningCustomers,
+            customerRetention,
+            customerLifetimeValue
+        });
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching analytics', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Settings API endpoints
+app.get('/api/admin/settings', (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const settings = database.settings || {
+            // General settings
+            storeName: 'Mi Tienda',
+            storeEmail: 'contacto@mitienda.com',
+            storePhone: '+34 900 123 456',
+            storeAddress: 'Calle Principal, 123, Ciudad, País',
+            storeCurrency: 'EUR',
+            
+            // Notification settings
+            emailNotifications: true,
+            lowStockAlert: true,
+            adminEmail: 'admin@mitienda.com',
+            lowStockThreshold: 5,
+            
+            // Payment settings
+            enableStripe: true,
+            stripePublicKey: '',
+            enablePayPal: false,
+            paypalEmail: '',
+            
+            // Shipping settings
+            freeShippingThreshold: 50,
+            standardShippingCost: 4.99,
+            expressShippingCost: 9.99,
+            enableInternationalShipping: false
+        };
+
+        res.json(settings);
+    } catch (error) {
+        writeLog('ERROR', 'Error fetching settings', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.put('/api/admin/settings', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        database.settings = { ...database.settings, ...req.body };
+        
+        database.activityLog.push({
+            product: 'Configuración',
+            action: 'Actualizada',
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Settings updated', { settings: Object.keys(req.body) });
+
+        res.json({ success: true, settings: database.settings });
+    } catch (error) {
+        writeLog('ERROR', 'Error updating settings', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.post('/api/admin/backup', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const backupFile = DB_FILE + '.backup.' + Date.now();
+        fs.copyFileSync(DB_FILE, backupFile);
+        
+        writeLog('INFO', 'Database backup created', { backupFile });
+        
+        res.json({ 
+            success: true, 
+            message: 'Respaldo creado correctamente',
+            filename: backupFile
+        });
+    } catch (error) {
+        writeLog('ERROR', 'Error creating backup', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.post('/api/admin/clear-cache', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        // Clear expired sessions
+        const now = Date.now();
+        let cleanedCount = 0;
+        
+        for (const [token, session] of sessions.entries()) {
+            if (session.expiresAt < now) {
+                sessions.delete(token);
+                cleanedCount++;
+            }
+        }
+        
+        writeLog('INFO', 'Cache cleared', { cleanedCount });
+        
+        res.json({ 
+            success: true, 
+            message: 'Caché limpiada correctamente',
+            cleanedSessions: cleanedCount
+        });
+    } catch (error) {
+        writeLog('ERROR', 'Error clearing cache', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.get('/api/admin/export-data', (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        const exportData = {
+            timestamp: new Date().toISOString(),
+            products: database.products,
+            categories: database.categories,
+            orders: database.orders,
+            stats: database.stats,
+            settings: database.settings
+        };
+
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="store_data_${new Date().toISOString().split('T')[0]}.json"`);
+        res.json(exportData);
+    } catch (error) {
+        writeLog('ERROR', 'Error exporting data', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+app.post('/api/admin/reset-settings', async (req, res) => {
+    try {
+        const token = getTokenFromHeader(req);
+        if (!validateSession(token)) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+
+        // Reset to default settings
+        database.settings = {
+            // General settings
+            storeName: 'Mi Tienda',
+            storeEmail: 'contacto@mitienda.com',
+            storePhone: '+34 900 123 456',
+            storeAddress: 'Calle Principal, 123, Ciudad, País',
+            storeCurrency: 'EUR',
+            
+            // Notification settings
+            emailNotifications: true,
+            lowStockAlert: true,
+            adminEmail: 'admin@mitienda.com',
+            lowStockThreshold: 5,
+            
+            // Payment settings
+            enableStripe: true,
+            stripePublicKey: '',
+            enablePayPal: false,
+            paypalEmail: '',
+            
+            // Shipping settings
+            freeShippingThreshold: 50,
+            standardShippingCost: 4.99,
+            expressShippingCost: 9.99,
+            enableInternationalShipping: false
+        };
+
+        database.activityLog.push({
+            product: 'Configuración',
+            action: 'Restablecida',
+            date: new Date().toISOString()
+        });
+
+        await saveDatabase();
+        writeLog('INFO', 'Settings reset to defaults');
+
+        res.json({ 
+            success: true, 
+            message: 'Configuración restablecida correctamente' 
+        });
+    } catch (error) {
+        writeLog('ERROR', 'Error resetting settings', { error: error.message });
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 // Cleanup orphaned images
 app.post('/api/admin/cleanup-images', async (req, res) => {
     try {

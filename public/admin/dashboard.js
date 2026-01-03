@@ -179,11 +179,12 @@ async function loadStats() {
 }
 
 function loadFallbackStats() {
+    // Calculate real stats from database
     const stats = {
-        totalProducts: products.length || 0,
-        totalOrders: 0,
-        totalRevenue: 0.00,
-        totalCustomers: 0
+        totalProducts: products.filter(p => p.status === 'active').length,
+        totalOrders: orders.length,
+        totalRevenue: orders.reduce((sum, order) => sum + (order.total || 0), 0),
+        totalCustomers: new Set(orders.map(order => order.customerEmail)).size
     };
     updateStatsDisplay(stats);
 }
@@ -223,7 +224,19 @@ async function loadRecentActivity() {
 
 function displayEmptyActivity() {
     const container = document.getElementById('recentActivity');
-    container.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay actividad reciente</td></tr>';
+    if (database.activityLog && database.activityLog.length > 0) {
+        const recentActivities = database.activityLog.slice(-10).reverse();
+        container.innerHTML = recentActivities.map(activity => `
+            <tr>
+                <td><i class="fas fa-circle text-success me-2"></i>${activity.action}</td>
+                <td>${activity.product || 'N/A'}</td>
+                <td><span class="badge bg-info">${activity.action}</span></td>
+                <td>${formatDate(activity.date)}</td>
+            </tr>
+        `).join('');
+    } else {
+        container.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay actividad reciente</td></tr>';
+    }
 }
 
 function displayRecentActivity(activities) {
@@ -274,7 +287,26 @@ async function loadPopularProducts() {
 
 function displayEmptyPopularProducts() {
     const container = document.getElementById('popularProducts');
-    container.innerHTML = '<p class="text-muted">No hay datos disponibles</p>';
+    const popularProducts = products
+        .filter(p => p.status === 'active')
+        .sort((a, b) => (b.sales || 0) - (a.sales || 0))
+        .slice(0, 5);
+    
+    if (popularProducts.length > 0) {
+        container.innerHTML = popularProducts.map((product, index) => `
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <div class="fw-bold">${product.name}</div>
+                    <small class="text-muted">${product.sales || 0} ventas</small>
+                </div>
+                <div class="text-end">
+                    <div class="badge bg-success">#${index + 1}</div>
+                </div>
+            </div>
+        `).join('');
+    } else {
+        container.innerHTML = '<p class="text-muted">No hay datos disponibles</p>';
+    }
 }
 
 function displayPopularProducts(popularProducts) {
@@ -1248,55 +1280,23 @@ async function loadAnalytics() {
 }
 
 function loadFallbackAnalytics() {
-    const fallbackData = {
-        salesData: generateMockSalesData(),
-        totalSales: Math.random() * 10000,
-        totalOrders: Math.floor(Math.random() * 100),
-        avgOrderValue: Math.random() * 200,
-        conversionRate: Math.random() * 10,
-        topProducts: generateMockProductData(),
-        categoryData: generateMockCategoryData(),
-        newCustomers: Math.floor(Math.random() * 50),
-        returningCustomers: Math.floor(Math.random() * 30),
-        customerRetention: Math.random() * 100,
-        customerLifetimeValue: Math.random() * 1000
-    };
-    updateAnalyticsDisplay(fallbackData);
+    // No fallback data - only use real data from API
+    console.log('Analytics API unavailable - showing empty state');
+    updateAnalyticsDisplay({
+        salesData: [],
+        totalSales: 0,
+        totalOrders: 0,
+        avgOrderValue: 0,
+        conversionRate: 0,
+        topProducts: [],
+        categoryData: [],
+        newCustomers: 0,
+        returningCustomers: 0,
+        customerRetention: 0,
+        customerLifetimeValue: 0
+    });
 }
 
-function generateMockSalesData() {
-    const days = parseInt(document.getElementById('analyticsPeriod').value);
-    const data = [];
-    const now = new Date();
-    
-    for (let i = days - 1; i >= 0; i--) {
-        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        data.push({
-            date: date.toISOString().split('T')[0],
-            sales: Math.random() * 1000
-        });
-    }
-    return data;
-}
-
-function generateMockProductData() {
-    return [
-        { name: 'Camiseta Básica', sales: 45 },
-        { name: 'Sudadera Premium', sales: 32 },
-        { name: 'Pantalón Jeans', sales: 28 },
-        { name: 'Gorra Deportiva', sales: 21 },
-        { name: 'Zapatillas Running', sales: 18 }
-    ];
-}
-
-function generateMockCategoryData() {
-    return [
-        { name: 'Camisetas', sales: 4500 },
-        { name: 'Sudaderas', sales: 3200 },
-        { name: 'Pantalones', sales: 2800 },
-        { name: 'Accesorios', sales: 1500 }
-    ];
-}
 
 function updateAnalyticsDisplay(data) {
     // Update summary stats
