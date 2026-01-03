@@ -11,12 +11,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="store-settings.js"></script>
 </head>
+<!-- Floating Theme Toggle Button - Above all content -->
+<div class="theme-toggle-bubble" onclick="toggleTheme()" title="Cambiar tema">
+    <i class="fas fa-sun" id="themeIcon"></i>
+</div>
 <body>
-    <!-- Floating Theme Toggle Button -->
-    <div class="theme-toggle-bubble" onclick="toggleTheme()" title="Cambiar tema">
-        <i class="fas fa-sun" id="themeIcon"></i>
-    </div>
-    
     <!-- Header -->
     <header class="bg-white shadow-sm sticky-top">
         <nav class="navbar navbar-expand-lg navbar-light">
@@ -44,7 +43,7 @@
                                 <span class="badge bg-danger rounded-pill cart-count" id="cartCount">0</span>
                             </a>
                         </li>
-                        <li class="nav-item">
+                        <li class="nav-item ms-3">
                             <a class="nav-link btn btn-success text-white px-3" href="admin/login.html">
                                 <i class="fas fa-lock me-1"></i>Admin
                             </a>
