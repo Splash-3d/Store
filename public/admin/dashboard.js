@@ -1353,11 +1353,29 @@ function updateSalesChart(salesData) {
 }
 
 function updateTopProductsChart(topProducts) {
-    const ctx = document.getElementById('topProductsChart').getContext('2d');
+    const canvas = document.getElementById('topProductsChart');
+    if (!canvas) {
+        console.error('topProductsChart canvas not found');
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Could not get 2d context for topProductsChart');
+        return;
+    }
     
     if (topProductsChart) {
         topProductsChart.destroy();
     }
+    
+    // Ensure we have data
+    if (!topProducts || topProducts.length === 0) {
+        console.log('No top products data available');
+        return;
+    }
+    
+    console.log('Creating top products chart with data:', topProducts);
     
     topProductsChart = new Chart(ctx, {
         type: 'bar',
@@ -1373,6 +1391,7 @@ function updateTopProductsChart(topProducts) {
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 y: {
                     beginAtZero: true
